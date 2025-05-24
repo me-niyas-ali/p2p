@@ -9,6 +9,10 @@ const wss = new WebSocket.Server({ server });
 
 const rooms = {}; // roomId: { socketId: { ws, name } }
 
+
+// Serve static files if needed (e.g., your client)
+app.use(express.static("public"));
+
 function generateId() {
   return Math.random().toString(36).substring(2, 10);
 }
