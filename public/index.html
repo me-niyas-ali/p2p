@@ -106,78 +106,78 @@
     }
   };
 
-  function sendFile(file) {
-    const fileId = Date.now() + '-' + Math.random().toString(36).slice(2);
-    const totalChunks = Math.ceil(file.size / chunkSize);
+function sendFile(file) {
+  const fileId = Date.now() + '-' + Math.random().toString(36).slice(2);
+  const totalChunks = Math.ceil(file.size / chunkSize);
 
-    // Create UI card
-    const card = document.createElement('div');
-    card.className = 'progress-card';
-    card.id = 'send-' + fileId;
-    card.innerHTML = `
-      <div><strong>Sending:</strong> ${file.name} (${formatBytes(file.size)})</div>
-      <div class="bar"></div>
-      <div class="transfer-info"></div>
-      <div class="status-label">Waiting...</div>
-      <button class="cancel-btn">Cancel</button>
-    `;
-    sentFiles.appendChild(card);
+  const card = document.createElement('div');
+  card.className = 'progress-card';
+  card.id = 'send-' + fileId;
+  card.innerHTML = `
+    <div><strong>Sending:</strong> ${file.name} (${formatBytes(file.size)})</div>
+    <div class="bar"></div>
+    <div class="transfer-info"></div>
+    <div class="status-label">Waiting...</div>
+    <button class="cancel-btn">Cancel</button>
+  `;
+  sentFiles.appendChild(card);
 
-    const bar = card.querySelector('.bar');
-    const transferInfo = card.querySelector('.transfer-info');
-    const statusLabel = card.querySelector('.status-label');
-    const cancelBtn = card.querySelector('.cancel-btn');
+  const bar = card.querySelector('.bar');
+  const transferInfo = card.querySelector('.transfer-info');
+  const statusLabel = card.querySelector('.status-label');
+  const cancelBtn = card.querySelector('.cancel-btn');
 
-    const transferObj = { cancelled: false };
+  const transferObj = { cancelled: false };
+  sendingTransfers[fileId] = transferObj;
 
-cancelBtn.onclick = () => {
-  transferObj.cancelled = true;
-  socket.emit('file-cancel', { room: currentRoom, fileId });
-  bar.style.backgroundColor = '#f44336';
-  bar.style.width = '0%';
-  transferInfo.textContent = '';
-  statusLabel.textContent = 'Transfer canceled';
-  statusLabel.className = 'status-label status-failed';
-  cancelBtn.disabled = true;
-};
+  cancelBtn.onclick = () => {
+    transferObj.cancelled = true;
+    socket.emit('file-cancel', { room: currentRoom, fileId });
+    bar.style.backgroundColor = '#f44336';
+    bar.style.width = '0%';
+    transferInfo.textContent = '';
+    statusLabel.textContent = 'Transfer canceled';
+    statusLabel.className = 'status-label status-failed';
+    cancelBtn.disabled = true;
+  };
 
-sendingTransfers[fileId] = transferObj;
+  statusLabel.textContent = 'Sending...';
 
-    statusLabel.textContent = 'Sending...';
+  (async () => {
+    for (let i = 0; i < totalChunks; i++) {
+      if (transferObj.cancelled) break;
 
-    (async () => {
-      for (let i = 0; i < totalChunks; i++) {
-  if (transferObj.cancelled) break;
+      const start = i * chunkSize;
+      const end = Math.min(file.size, start + chunkSize);
+      const chunk = file.slice(start, end);
+      const arrayBuffer = await chunk.arrayBuffer();
+      const chunkBase64 = arrayBufferToBase64(arrayBuffer);
 
-        const start = i * chunkSize;
-        const end = Math.min(file.size, start + chunkSize);
-        const chunk = file.slice(start, end);
-        const arrayBuffer = await chunk.arrayBuffer();
-        const chunkBase64 = arrayBufferToBase64(arrayBuffer);
+      socket.emit('file-chunk', {
+        room: currentRoom,
+        fileId,
+        chunk: chunkBase64,
+        chunkIndex: i,
+        totalChunks,
+        fileName: file.name,
+        fileSize: file.size,
+      });
 
-        socket.emit('file-chunk', {
-          room: currentRoom,
-          fileId,
-          chunk: chunkBase64,
-          chunkIndex: i,
-          totalChunks,
-          fileName: file.name,
-          fileSize: file.size,
-        });
+      const progressPercent = ((i + 1) / totalChunks) * 100;
+      bar.style.width = progressPercent + '%';
+      transferInfo.textContent = `${formatBytes((i + 1) * chunkSize)} / ${formatBytes(file.size)}`;
+    }
 
-        const progressPercent = ((i + 1) / totalChunks) * 100;
-        bar.style.width = progressPercent + '%';
-        transferInfo.textContent = `${formatBytes((i + 1) * chunkSize)} / ${formatBytes(file.size)}`;
-      }
+    if (!transferObj.cancelled) {
+      statusLabel.textContent = 'File sent';
+      statusLabel.className = 'status-label status-success';
+      cancelBtn.disabled = true;
+    }
 
-      if (!cancelled) {
-        statusLabel.textContent = 'File sent';
-        statusLabel.className = 'status-label status-success';
-        cancelBtn.disabled = true;
-      }
-      delete sendingTransfers[fileId];
-    })();
-  }
+    delete sendingTransfers[fileId];
+  })();
+}
+
 
   socket.on('file-chunk', ({ fileId, chunk, chunkIndex, totalChunks, fileName, fileSize }) => {
     if (!receivingTransfers[fileId]) {
