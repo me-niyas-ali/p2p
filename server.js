@@ -8,13 +8,15 @@ const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
 
+// Serve static files from 'public' folder
+app.use(express.static('public'));
+
 io.on('connection', (socket) => {
   console.log(`Client connected: ${socket.id}`);
 
   socket.on('joinRoom', (room) => {
     socket.join(room);
     console.log(`Socket ${socket.id} joined room ${room}`);
-    // Broadcast updated device count to all in room
     const clients = io.sockets.adapter.rooms.get(room);
     io.to(room).emit('deviceCount', clients ? clients.size : 1);
   });
@@ -27,7 +29,6 @@ io.on('connection', (socket) => {
   });
 
   socket.on('file-chunk', ({ room, fileId, chunk, chunkIndex, totalChunks, fileName, fileSize }) => {
-    // Broadcast the chunk to all other clients in the room except sender
     socket.to(room).emit('file-chunk', { fileId, chunk, chunkIndex, totalChunks, fileName, fileSize });
   });
 
@@ -36,7 +37,6 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnecting', () => {
-    // Notify rooms about device count changes on disconnect
     for (const room of socket.rooms) {
       if (room !== socket.id) {
         const clients = io.sockets.adapter.rooms.get(room);
