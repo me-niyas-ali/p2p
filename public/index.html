@@ -246,7 +246,7 @@
           readSlice();
         } else {
           isSending = false;
-          container.innerHTML += `<p style="color: green; font-weight: bold; margin-top: 10px;">File Sent</p>`;
+          document.getElementById("progressBar").style.display = "none";
           showToast("File Sent", "green");
         }
       };
@@ -272,10 +272,19 @@
         <p><strong>${name}</strong></p>
         <p>${formatBytes(size)}</p>
         <div class="progress"><div class="bar" id="recv-${id}"></div></div>
+        <button class="cancel-btn" onclick="cancelReceive('${name}', 'recv-${id}')">Cancel</button>
       `;
       document.getElementById("receivedFiles").appendChild(card);
       receivingCards[name] = `recv-${id}`;
     });
+
+    function cancelReceive(name, barId) {
+      delete receivedBuffers[name];
+      delete receivingCards[name];
+      const bar = document.getElementById(barId);
+      if (bar) bar.closest(".card").remove();
+      showToast("Receiving Cancelled", "red");
+    }
 
     socket.on("file-chunk", ({ name, data, done }) => {
       if (!receivedBuffers[name]) return;
