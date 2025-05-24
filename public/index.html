@@ -246,7 +246,7 @@
           readSlice();
         } else {
           isSending = false;
-          document.getElementById("progressBar").style.display = "none";
+          container.innerHTML += `<p style="color: green; font-weight: bold; margin-top: 10px;">File Sent</p>`;
           showToast("File Sent", "green");
         }
       };
