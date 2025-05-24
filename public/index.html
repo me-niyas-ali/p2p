@@ -128,26 +128,26 @@
     const statusLabel = card.querySelector('.status-label');
     const cancelBtn = card.querySelector('.cancel-btn');
 
-    let cancelled = false;
+    const transferObj = { cancelled: false };
 
-    cancelBtn.onclick = () => {
-      cancelled = true;
-      socket.emit('file-cancel', { room: currentRoom, fileId });
-      bar.style.backgroundColor = '#f44336';
-      bar.style.width = '0%';
-      transferInfo.textContent = '';
-      statusLabel.textContent = 'Transfer canceled';
-      statusLabel.className = 'status-label status-failed';
-      cancelBtn.disabled = true;
-    };
+cancelBtn.onclick = () => {
+  transferObj.cancelled = true;
+  socket.emit('file-cancel', { room: currentRoom, fileId });
+  bar.style.backgroundColor = '#f44336';
+  bar.style.width = '0%';
+  transferInfo.textContent = '';
+  statusLabel.textContent = 'Transfer canceled';
+  statusLabel.className = 'status-label status-failed';
+  cancelBtn.disabled = true;
+};
 
-    sendingTransfers[fileId] = { cancelled };
+sendingTransfers[fileId] = transferObj;
 
     statusLabel.textContent = 'Sending...';
 
     (async () => {
       for (let i = 0; i < totalChunks; i++) {
-        if (cancelled) break;
+  if (transferObj.cancelled) break;
 
         const start = i * chunkSize;
         const end = Math.min(file.size, start + chunkSize);
