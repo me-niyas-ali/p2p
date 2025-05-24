@@ -1,71 +1,95 @@
-const express = require("express");
-const http = require("http");
-const { Server } = require("socket.io");
+const express = require('express');
+const http = require('http');
+const WebSocket = require('ws');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const wss = new WebSocket.Server({ server });
 
-const PORT = process.env.PORT || 3000;
+const rooms = {}; // roomId: { socketId: { ws, name } }
 
-// Serve static files if needed (e.g., your client)
-app.use(express.static("public"));
+function generateId() {
+  return Math.random().toString(36).substring(2, 10);
+}
 
-// Room data structure to track sockets in rooms
-const rooms = {};
+wss.on('connection', (ws) => {
+  let currentRoom = null;
+  let socketId = generateId();
+  let peerName = null;
 
-io.on("connection", (socket) => {
-  console.log(`Socket connected: ${socket.id}`);
+  ws.on('message', (message) => {
+    try {
+      const data = JSON.parse(message);
+      switch (data.type) {
+        case 'join':
+          currentRoom = data.roomId;
+          peerName = data.name;
 
-  // Track which room the socket is in
-  socket.on("join-room", (room) => {
-    // Leave previous rooms just in case
-    Object.keys(socket.rooms).forEach((r) => {
-      if (r !== socket.id) socket.leave(r);
-    });
+          rooms[currentRoom] = rooms[currentRoom] || {};
+          rooms[currentRoom][socketId] = { ws, name: peerName };
 
-    socket.join(room);
-    console.log(`${socket.id} joined room ${room}`);
+          // Notify existing peers
+          Object.entries(rooms[currentRoom]).forEach(([id, peer]) => {
+            if (id !== socketId) {
+              peer.ws.send(JSON.stringify({
+                type: 'new-peer',
+                id: socketId,
+                name: peerName
+              }));
+              ws.send(JSON.stringify({
+                type: 'new-peer',
+                id,
+                name: peer.name
+              }));
+            }
+          });
+          break;
 
-    // Track rooms
-    if (!rooms[room]) rooms[room] = new Set();
-    rooms[room].add(socket.id);
-
-    // Broadcast updated connected count to room
-    io.to(room).emit("update-count", rooms[room].size);
+        case 'offer':
+        case 'answer':
+        case 'ice':
+        case 'cancel':
+        case 'kick':
+          const target = data.target;
+          const roomPeers = rooms[currentRoom];
+          if (roomPeers && roomPeers[target]) {
+            roomPeers[target].ws.send(JSON.stringify({
+              ...data,
+              from: socketId,
+              name: peerName
+            }));
+          }
+          if (data.type === 'kick') {
+            // Remove peer from room
+            roomPeers[target].ws.close();
+            delete roomPeers[target];
+          }
+          break;
+      }
+    } catch (err) {
+      console.error('Message error:', err);
+    }
   });
 
-  // Relay "start-file" event to all except sender
-  socket.on("start-file", (data) => {
-    if (!data.room) return;
-    socket.to(data.room).emit("start-file", { name: data.name, size: data.size });
-  });
-
-  // Relay file chunks to others in the room
-  socket.on("file-chunk", (data) => {
-    if (!data.room) return;
-    socket.to(data.room).emit("file-chunk", { name: data.name, data: data.data, done: data.done });
-  });
-
-  // Relay cancel event to others in the room
-  socket.on("cancel-file", (data) => {
-    if (!data.room) return;
-    socket.to(data.room).emit("cancel-file", { name: data.name });
-  });
-
-  // Handle disconnect: remove socket from rooms and update counts
-  socket.on("disconnect", () => {
-    console.log(`Socket disconnected: ${socket.id}`);
-    for (const room in rooms) {
-      if (rooms[room].has(socket.id)) {
-        rooms[room].delete(socket.id);
-        io.to(room).emit("update-count", rooms[room].size);
-        if (rooms[room].size === 0) delete rooms[room];
+  ws.on('close', () => {
+    if (currentRoom && rooms[currentRoom]) {
+      delete rooms[currentRoom][socketId];
+      // Notify others
+      Object.values(rooms[currentRoom]).forEach(peer => {
+        peer.ws.send(JSON.stringify({
+          type: 'peer-left',
+          id: socketId
+        }));
+      });
+      if (Object.keys(rooms[currentRoom]).length === 0) {
+        delete rooms[currentRoom];
       }
     }
   });
 });
 
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+app.use(express.static(path.join(__dirname, 'public')));
+
+const PORT = process.env.PORT || 10000;
+server.listen(PORT, () => console.log(`Server running on ${PORT}`));
