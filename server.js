@@ -6,50 +6,48 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 
-// Serve static files from 'public' folder
-app.use(express.static('public'));
+app.use(express.static('public')); // Serve client files from public folder
 
 io.on('connection', (socket) => {
-  console.log(`Client connected: ${socket.id}`);
+  console.log('Client connected', socket.id);
 
-  socket.on('joinRoom', (room) => {
+  // Join room event
+  socket.on('join-room', (room) => {
     socket.join(room);
-    console.log(`Socket ${socket.id} joined room ${room}`);
+    console.log(`${socket.id} joined room ${room}`);
+
+    // Broadcast device count in room
     const clients = io.sockets.adapter.rooms.get(room);
-    io.to(room).emit('deviceCount', clients ? clients.size : 1);
+    const count = clients ? clients.size : 0;
+    io.to(room).emit('deviceCount', count);
   });
 
-  socket.on('leaveRoom', (room) => {
-    socket.leave(room);
-    console.log(`Socket ${socket.id} left room ${room}`);
-    const clients = io.sockets.adapter.rooms.get(room);
-    io.to(room).emit('deviceCount', clients ? clients.size : 0);
+  // Relay file chunk to room except sender
+  socket.on('file-chunk', (data) => {
+    socket.to(data.room).emit('file-chunk', data);
   });
 
-  socket.on('file-chunk', ({ room, fileId, chunk, chunkIndex, totalChunks, fileName, fileSize }) => {
-    socket.to(room).emit('file-chunk', { fileId, chunk, chunkIndex, totalChunks, fileName, fileSize });
-  });
-
+  // Relay cancel event
   socket.on('file-cancel', ({ room, fileId }) => {
     socket.to(room).emit('file-cancel', { fileId });
   });
 
   socket.on('disconnecting', () => {
-    for (const room of socket.rooms) {
+    const rooms = socket.rooms;
+    rooms.forEach(room => {
       if (room !== socket.id) {
-        const clients = io.sockets.adapter.rooms.get(room);
-        io.to(room).emit('deviceCount', clients ? clients.size - 1 : 0);
+        setTimeout(() => {
+          const clients = io.sockets.adapter.rooms.get(room);
+          const count = clients ? clients.size : 0;
+          io.to(room).emit('deviceCount', count);
+        }, 100);
       }
-    }
-  });
-
-  socket.on('disconnect', () => {
-    console.log(`Client disconnected: ${socket.id}`);
+    });
   });
 });
 
 server.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
+  console.log(`Server running at http://localhost:${PORT}`);
 });
