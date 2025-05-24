@@ -36,6 +36,10 @@ io.on('connection', (socket) => {
   socket.on('file-chunk', (data) => {
     socket.to(currentRoom).emit('file-chunk', data);
   });
+
+  socket.on('cancel-file', (fileName) => {
+    socket.to(currentRoom).emit('cancel-file', fileName);
+  });
 });
 
 server.listen(3000, () => console.log('Server running on http://localhost:3000'));
