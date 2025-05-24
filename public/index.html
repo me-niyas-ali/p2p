@@ -1,149 +1,202 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>P2P File Share</title>
   <style>
-    body { font-family: Arial; margin: 0; padding: 0; background: #f4f4f4; }
-    header { padding: 1rem; background: #333; color: #fff; text-align: center; }
-    main { padding: 1rem; }
-    .controls button { margin: 0.5rem; padding: 0.5rem 1rem; }
-    .device-list { margin-top: 1rem; }
-    .device { background: #fff; margin-bottom: 0.5rem; padding: 0.5rem; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; }
-    .file-card { margin-top: 1rem; background: #fff; padding: 1rem; border-radius: 5px; }
-    .progress-bar { height: 20px; background: #eee; border-radius: 5px; overflow: hidden; margin-top: 0.5rem; }
-    .progress { height: 100%; background: green; width: 0%; }
-    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 1rem; border-radius: 5px; display: none; }
-    .toast.show { display: block; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    #deviceList div, #transfers div {
+      margin: 10px 0;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    .toast {
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      background: #333;
+      color: #fff;
+      padding: 10px;
+      border-radius: 5px;
+      z-index: 999;
+    }
+    button {
+      margin: 5px;
+    }
   </style>
 </head>
 <body>
-  <header>
-    <h1>P2P File Share</h1>
-  </header>
-  <main>
-    <div class="controls">
-      <button id="hostRoom">Host Room</button>
-      <button id="joinRoom">Join Room</button>
-      <button id="exitRoom">Exit Room</button>
-    </div><div class="device-list" id="devices">
-  <!-- Connected devices will appear here -->
-</div>
+  <div id="app">
+    <h2>P2P File Sharing</h2>
 
-<div class="file-upload">
-  <input type="file" id="fileInput" />
-  <div class="file-card" id="fileCard" style="display:none">
-    <p><strong>Name:</strong> <span id="fileName"></span></p>
-    <p><strong>Size:</strong> <span id="fileSize"></span></p>
-    <div class="progress-bar">
-      <div class="progress" id="progressBar"></div>
+    <div>
+      <input type="text" id="roomIdInput" placeholder="Enter 4-digit Room ID" maxlength="4">
+      <button onclick="joinRoom()">Join Room</button>
+      <button onclick="exitRoom()">Exit Room</button>
     </div>
-    <button id="cancelFile">Cancel</button>
+
+    <h4>Connected Devices</h4>
+    <div id="deviceList"></div>
+
+    <input type="file" id="fileInput" hidden>
+    <button onclick="document.getElementById('fileInput').click()">Upload File</button>
+    <div id="fileInfo"></div>
+
+    <button onclick="sendFile()">Send</button>
+
+    <h4>Transfers</h4>
+    <div id="transfers"></div>
   </div>
-</div>
 
-<button id="sendFile" disabled>Send</button>
+  <script>
+    let peers = {};
+    let roomId = null;
+    let localPeerName = generateRandomName();
+    let fileBuffer = null;
+    let fileMeta = null;
+    let socket = null;
+    const transferIntervals = {};
 
-<div class="toast" id="toast"></div>
-
-  </main>  <script>
-    const devices = document.getElementById("devices");
-    const fileInput = document.getElementById("fileInput");
-    const fileCard = document.getElementById("fileCard");
-    const fileName = document.getElementById("fileName");
-    const fileSize = document.getElementById("fileSize");
-    const progressBar = document.getElementById("progressBar");
-    const toast = document.getElementById("toast");
-    const sendBtn = document.getElementById("sendFile");
-    let file = null;
-    let transferProgress = 0;
-
-    const randomName = () => {
-      const adjectives = ["Fast", "Red", "Quiet", "Bright", "Smart"];
-      const nouns = ["Fox", "Eagle", "Tiger", "Panda", "Shark"];
-      return (
-        adjectives[Math.floor(Math.random() * adjectives.length)] +
-        " " +
-        nouns[Math.floor(Math.random() * nouns.length)]
-      );
-    };
-
-    const showToast = (message) => {
-      toast.textContent = message;
-      toast.classList.add("show");
-      setTimeout(() => toast.classList.remove("show"), 3000);
-    };
-
-    document.getElementById("hostRoom").onclick = () => {
-      showToast("Room hosted");
-      addDevice(randomName());
-    };
-
-    document.getElementById("joinRoom").onclick = () => {
-      showToast("Joined room");
-      addDevice(randomName());
-    };
-
-    document.getElementById("exitRoom").onclick = () => {
-      devices.innerHTML = "";
-      showToast("Exited room");
-    };
-
-    function addDevice(name) {
-      const div = document.createElement("div");
-      div.className = "device";
-      div.innerHTML = `
-        <span>${name}</span>
-        <button onclick="kickDevice(this)">Kick</button>
-      `;
-      devices.appendChild(div);
+    function generateRandomName() {
+      const adjectives = ["Silent", "Quick", "Fuzzy", "Brave"];
+      const nouns = ["Fox", "Panda", "Tiger", "Hawk"];
+      return adjectives[Math.floor(Math.random() * adjectives.length)] + " " + nouns[Math.floor(Math.random() * nouns.length)];
     }
 
-    function kickDevice(btn) {
-      btn.parentElement.remove();
-      showToast("Device kicked out");
-    }
-
-    fileInput.onchange = (e) => {
-      file = e.target.files[0];
-      if (file) {
-        fileName.textContent = file.name;
-        fileSize.textContent = formatSize(file.size);
-        fileCard.style.display = "block";
-        sendBtn.disabled = false;
+    function joinRoom() {
+      roomId = document.getElementById('roomIdInput').value;
+      if (roomId.length !== 4) {
+        alert("Room ID must be 4 digits");
+        return;
       }
-    };
 
-    document.getElementById("cancelFile").onclick = () => {
-      file = null;
-      fileCard.style.display = "none";
-      sendBtn.disabled = true;
-      showToast("Transfer cancelled");
-    };
+      socket = new WebSocket(`wss://${window.location.host}`);
+      socket.onopen = () => {
+        socket.send(JSON.stringify({ type: 'join', roomId, name: localPeerName }));
+      };
 
-    sendBtn.onclick = () => {
-      if (!file) return;
-      sendBtn.disabled = true;
-      transferProgress = 0;
-      const interval = setInterval(() => {
-        if (transferProgress >= 100) {
-          clearInterval(interval);
-          showToast("File sent");
-          return;
+      socket.onmessage = (message) => {
+        const data = JSON.parse(message.data);
+        if (data.type === 'new-peer') {
+          addPeer(data.id, data.name);
+        } else if (data.type === 'cancel') {
+          handleReceiverCancel(data);
         }
-        transferProgress += 5;
-        progressBar.style.width = `${transferProgress}%`;
-      }, 300);
-    };
+      };
 
-    function formatSize(bytes) {
-      const kb = 1024;
-      const mb = kb * 1024;
-      const gb = mb * 1024;
-      if (bytes < kb) return `${bytes} B`;
-      if (bytes < mb) return `${(bytes / kb).toFixed(1)} KB`;
-      if (bytes < gb) return `${(bytes / mb).toFixed(1)} MB`;
-      return `${(bytes / gb).toFixed(1)} GB`;
+      showToast(`Joined room ${roomId}`);
     }
-  </script></body>
+
+    function exitRoom() {
+      if (socket) {
+        socket.close();
+      }
+      for (let id in peers) {
+        removePeer(id);
+      }
+      document.getElementById('deviceList').innerHTML = '';
+      showToast("Exited room");
+    }
+
+    function addPeer(id, name) {
+      const div = document.createElement('div');
+      div.innerHTML = `${name} <button onclick="kick('${id}')">Kick</button>`;
+      div.id = `peer-${id}`;
+      document.getElementById('deviceList').appendChild(div);
+      peers[id] = { id, name };
+    }
+
+    function kick(id) {
+      removePeer(id);
+      showToast(`Kicked device: ${id}`);
+    }
+
+    function removePeer(id) {
+      document.getElementById(`peer-${id}`)?.remove();
+      delete peers[id];
+    }
+
+    document.getElementById('fileInput').addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      fileBuffer = file;
+      fileMeta = {
+        name: file.name,
+        size: file.size
+      };
+      document.getElementById('fileInfo').innerText = `${file.name} (${formatBytes(file.size)})`;
+    });
+
+    function formatBytes(bytes) {
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      if (bytes == 0) return '0 Byte';
+      const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+      return Math.round(bytes / Math.pow(1024, i), 2) + ' ' + sizes[i];
+    }
+
+    function sendFile() {
+      if (!fileBuffer || !fileMeta) return;
+      Object.values(peers).forEach(peer => {
+        const div = document.createElement('div');
+        div.id = `transfer-${peer.id}`;
+        div.innerHTML = `Sending to ${peer.name}: 0 / ${formatBytes(fileMeta.size)} 
+          <button onclick="cancelTransfer('${peer.id}', 'sender')">Cancel</button>`;
+        document.getElementById('transfers').appendChild(div);
+
+        let transferred = 0;
+        const interval = setInterval(() => {
+          if (!transferIntervals[peer.id]) return; // cancelled
+          transferred += fileMeta.size / 10;
+          if (transferred >= fileMeta.size) {
+            clearInterval(interval);
+            div.innerHTML = `Sent to ${peer.name}`;
+            showToast("File sent");
+            delete transferIntervals[peer.id];
+          } else {
+            div.innerHTML = `Sending to ${peer.name}: ${formatBytes(transferred)} / ${formatBytes(fileMeta.size)}
+              <button onclick="cancelTransfer('${peer.id}', 'sender')">Cancel</button>`;
+          }
+        }, 300);
+
+        transferIntervals[peer.id] = interval;
+      });
+    }
+
+    function cancelTransfer(peerId, role) {
+      clearInterval(transferIntervals[peerId]);
+      delete transferIntervals[peerId];
+      document.getElementById(`transfer-${peerId}`).innerHTML = `Transfer cancelled`;
+
+      if (role === 'sender') {
+        // simulate send cancel notice to peer
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ type: 'cancel', target: peerId, from: localPeerName }));
+        }
+      } else {
+        showToast(`You cancelled transfer with ${peers[peerId]?.name || 'Unknown'}`);
+      }
+    }
+
+    function handleReceiverCancel(data) {
+      const peerName = data.from;
+      showToast(`Transfer cancelled by ${peerName}`);
+      const div = document.getElementById(`transfer-${data.target}`);
+      if (div) {
+        div.innerHTML = `Transfer cancelled by ${peerName}`;
+      }
+    }
+
+    function showToast(message) {
+      const toast = document.createElement('div');
+      toast.innerText = message;
+      toast.className = "toast";
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+  </script>
+</body>
 </html>
