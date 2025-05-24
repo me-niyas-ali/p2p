@@ -2,30 +2,35 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>LAN File Sharing</title>
   <style>
     * {
       box-sizing: border-box;
     }
+
     body {
       font-family: sans-serif;
       margin: 0;
       padding: 20px;
       background-color: #f4f4f4;
     }
+
     h2 {
       text-align: center;
     }
+
     .container {
       max-width: 600px;
       margin: auto;
       padding: 10px;
       background: white;
       border-radius: 10px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     }
-    input[type="text"], input[type="file"] {
+
+    input[type="text"],
+    input[type="file"] {
       width: 100%;
       padding: 10px;
       margin: 10px 0;
@@ -33,12 +38,14 @@
       border: 1px solid #ccc;
       border-radius: 5px;
     }
+
     .btn-group {
       display: flex;
       gap: 10px;
       width: 100%;
       margin-bottom: 10px;
     }
+
     button {
       flex: 1;
       padding: 10px;
@@ -49,34 +56,41 @@
       border-radius: 5px;
       cursor: pointer;
     }
+
     button:hover {
       background-color: #45a049;
     }
+
     .exit-btn {
       background-color: #ff5722;
     }
+
     .exit-btn:hover {
       background-color: #e64a19;
     }
+
     .card {
       border: 1px solid #ccc;
       border-radius: 8px;
       padding: 15px;
       margin: 10px 0;
       background: #fff;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-      position: relative;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     }
+
     .status-label {
       font-weight: bold;
       margin-top: 10px;
     }
+
     .status-success {
       color: green;
     }
+
     .status-failed {
       color: red;
     }
+
     .progress {
       width: 100%;
       height: 30px;
@@ -85,24 +99,29 @@
       overflow: hidden;
       margin-top: 10px;
     }
+
     .bar {
       height: 100%;
       width: 0%;
       background: #4caf50;
       transition: width 0.3s;
     }
+
     .cancel-btn {
       background-color: #f44336;
       margin-top: 10px;
     }
+
     .cancel-btn:hover {
       background-color: #d32f2f;
     }
+
     .tabs {
       display: flex;
       justify-content: space-around;
       margin-top: 20px;
     }
+
     .tab-btn {
       flex: 1;
       padding: 10px;
@@ -111,22 +130,45 @@
       border: none;
       background: #eee;
     }
+
     .tab-btn.active {
       background: #4caf50;
       color: white;
     }
+
     #sentFiles,
     #receivedFiles {
       display: none;
     }
+
     #sentFiles.active,
     #receivedFiles.active {
       display: block;
     }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 12px 20px;
+      border-radius: 5px;
+      color: white;
+      font-weight: bold;
+      z-index: 1000;
+      opacity: 0.9;
+      animation: fadeInOut 4s forwards;
+    }
+
     #statusDisplay {
       text-align: center;
       font-weight: bold;
       margin: 10px 0;
+    }
+
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translateY(20px); }
+      10%, 90% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(20px); }
     }
   </style>
 </head>
@@ -135,295 +177,178 @@
     <h2>LAN File Sharing</h2>
     <input type="text" id="roomInput" placeholder="Enter Room Code (4-digit)" maxlength="6" />
     <div class="btn-group">
-      <button id="joinBtn">Join</button>
-      <button id="leaveBtn" class="exit-btn" disabled>Exit</button>
+      <button onclick="joinRoom()">Join</button>
+      <button class="exit-btn" onclick="leaveRoom()">Exit</button>
     </div>
     <div id="statusDisplay">Not connected</div>
 
-    <input type="file" id="fileInput" disabled />
-    <button id="sendBtn" disabled>Send File</button>
+    <input type="file" id="fileInput" />
+    <button onclick="sendFile()">Send File</button>
 
     <div class="tabs">
-      <button class="tab-btn active" data-tab="sentFiles">Sent</button>
-      <button class="tab-btn" data-tab="receivedFiles">Received</button>
+      <button class="tab-btn active" onclick="switchTab('sentFiles')">Sent</button>
+      <button class="tab-btn" onclick="switchTab('receivedFiles')">Received</button>
     </div>
 
     <div id="sentFiles" class="active"></div>
     <div id="receivedFiles"></div>
   </div>
 
-  <script src="/socket.io/socket.io.js"></script>
   <script>
-    const socket = io();
-
-    // UI elements
-    const roomInput = document.getElementById('roomInput');
-    const joinBtn = document.getElementById('joinBtn');
-    const leaveBtn = document.getElementById('leaveBtn');
-    const statusDisplay = document.getElementById('statusDisplay');
-    const fileInput = document.getElementById('fileInput');
-    const sendBtn = document.getElementById('sendBtn');
-    const sentFilesDiv = document.getElementById('sentFiles');
-    const receivedFilesDiv = document.getElementById('receivedFiles');
-    const tabButtons = document.querySelectorAll('.tab-btn');
-
+    const sentTab = document.getElementById("sentFiles");
+    const receivedTab = document.getElementById("receivedFiles");
+    const statusDisplay = document.getElementById("statusDisplay");
+    let connectedDevices = 1;
     let currentRoom = null;
-    let sending = false;
 
-    // To track ongoing sent transfers (id -> interval for cancel)
-    const sendTransfers = {};
-
-    // To track ongoing received file data
-    // Structure: { fileName, fileSize, receivedSize, chunks: [] }
-    let receivingFile = null;
-
-    // Tab switching
-    tabButtons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        tabButtons.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        const tab = btn.getAttribute('data-tab');
-        if(tab === 'sentFiles') {
-          sentFilesDiv.classList.add('active');
-          receivedFilesDiv.classList.remove('active');
-        } else {
-          receivedFilesDiv.classList.add('active');
-          sentFilesDiv.classList.remove('active');
-        }
-      });
-    });
-
-    // Join room
-    joinBtn.addEventListener('click', () => {
-      const roomId = roomInput.value.trim();
-      if(!roomId || roomId.length < 1) {
-        alert('Enter a room code');
-        return;
-      }
-      socket.emit('join-room', roomId);
-      currentRoom = roomId;
-      statusDisplay.textContent = `Joined Room: ${currentRoom}`;
-      fileInput.disabled = false;
-      sendBtn.disabled = false;
-      joinBtn.disabled = true;
-      leaveBtn.disabled = false;
-    });
-
-    // Leave room
-    leaveBtn.addEventListener('click', () => {
-      if(!currentRoom) return;
-      socket.emit('leave-room', currentRoom);
-      statusDisplay.textContent = 'Not connected';
-      currentRoom = null;
-      fileInput.disabled = true;
-      sendBtn.disabled = true;
-      joinBtn.disabled = false;
-      leaveBtn.disabled = true;
-    });
-
-    // Send file
-    sendBtn.addEventListener('click', () => {
-      if (sending) {
-        alert("Already sending a file. Please wait.");
-        return;
-      }
-      const file = fileInput.files[0];
-      if(!file) {
-        alert("Choose a file first.");
-        return;
-      }
-      if(!currentRoom) {
-        alert("Join a room first.");
-        return;
-      }
-      sending = true;
-      sendFile(file);
-    });
-
-    // Format bytes helper
-    function formatBytes(bytes) {
-      const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-      if(bytes === 0) return '0 Bytes';
-      const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
-      return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + sizes[i];
+    function switchTab(tabId) {
+      document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
+      document.querySelectorAll("#sentFiles, #receivedFiles").forEach(tab => tab.classList.remove("active"));
+      event.target.classList.add("active");
+      document.getElementById(tabId).classList.add("active");
     }
 
-    // Create a card element for a file transfer
-    function createCard(fileName, readableSize, isSender, id) {
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.id = `${isSender ? 'sent' : 'received'}-card-${id}`;
+    function joinRoom() {
+      const roomId = document.getElementById("roomInput").value;
+      if (!roomId) return;
+      currentRoom = roomId;
+      connectedDevices = Math.floor(Math.random() * 4) + 1;
+      statusDisplay.textContent = `Joined Room: ${currentRoom} | Devices: ${connectedDevices}`;
+      showToast(`Joined room: ${roomId}`, "green");
+    }
 
+    function leaveRoom() {
+      if (!currentRoom) return;
+      showToast(`Left room: ${currentRoom}`, "orange");
+      currentRoom = null;
+      connectedDevices = 1;
+      statusDisplay.textContent = "Not connected";
+    }
+
+    function sendFile() {
+      const fileInput = document.getElementById("fileInput");
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      const id = Date.now();
+      const readableSize = formatBytes(file.size);
+      const card = document.createElement("div");
+      card.className = "card";
+      card.id = `card-${id}`;
       card.innerHTML = `
-        <strong>${fileName}</strong><br>
+        <strong>${file.name}</strong><br>
         <small>${readableSize}</small>
         <div class="progress" id="progress-${id}">
           <div class="bar" id="bar-${id}"></div>
         </div>
+        <button class="cancel-btn" id="cancel-${id}" onclick="cancelSentTransfer(${id})">Cancel</button>
         <div class="status-label" id="status-${id}"></div>
       `;
-      if(isSender) sentFilesDiv.appendChild(card);
-      else receivedFilesDiv.appendChild(card);
+      sentTab.appendChild(card);
 
-      return card;
-    }
-
-    // Send file function - send file in chunks via socket.io
-    async function sendFile(file) {
-      const id = Date.now();
-      const readableSize = formatBytes(file.size);
-
-      // Create sender card UI
-      const card = createCard(file.name, readableSize, true, id);
       const bar = document.getElementById(`bar-${id}`);
       const statusText = document.getElementById(`status-${id}`);
-
-      // Notify receivers file metadata
-      socket.emit('file-meta', {
-        roomId: currentRoom,
-        fileName: file.name,
-        fileSize: file.size
-      });
-
-      const chunkSize = 64 * 1024; // 64 KB chunks
-      const fileReader = new FileReader();
-
-      let offset = 0;
-
-      fileReader.onerror = (err) => {
-        console.error("FileReader error", err);
-        statusText.textContent = "Send failed";
-        statusText.className = "status-label status-failed";
-        sending = false;
-      };
-
-      fileReader.onload = e => {
-        const buffer = e.target.result;
-        // Send chunk to server
-        socket.emit('file-chunk', {
-          roomId: currentRoom,
-          chunk: buffer
-        });
-
-        offset += buffer.byteLength;
-        const progressPercent = Math.floor((offset / file.size) * 100);
-        bar.style.width = progressPercent + '%';
-
-        if (offset < file.size) {
-          readSlice(offset);
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += 10;
+        if (progress >= 100) {
+          clearInterval(interval);
+          bar.style.width = "100%";
+          document.getElementById(`progress-${id}`).style.display = "none";
+          document.getElementById(`cancel-${id}`).style.display = "none";
+          statusText.textContent = "File sent";
+          statusText.className = "status-label status-success";
+          showToast("File sent!", "green");
+          // Simulate receiving
+          receiveFile(file.name, file.size);
         } else {
-          // Done sending
-          socket.emit('file-transfer-complete', currentRoom);
-          bar.style.width = '100%';
-          setTimeout(() => {
-            document.getElementById(`progress-${id}`).style.display = 'none';
-            statusText.textContent = "File sent";
-            statusText.className = "status-label status-success";
-            sending = false;
-            // Hide "File sent" after 5s
-            setTimeout(() => {
-              statusText.textContent = "";
-            }, 5000);
-          }, 200);
+          bar.style.width = progress + "%";
         }
-      };
+      }, 200);
 
-      function readSlice(o) {
-        const slice = file.slice(o, o + chunkSize);
-        fileReader.readAsArrayBuffer(slice);
-      }
-
-      readSlice(0);
+      bar.dataset.intervalId = interval;
     }
 
-    // Receiving logic
+    function cancelSentTransfer(id) {
+      const bar = document.getElementById(`bar-${id}`);
+      clearInterval(bar.dataset.intervalId);
+      bar.style.backgroundColor = "#f44336";
+      bar.style.width = "0%";
+      document.getElementById(`progress-${id}`).style.display = "none";
+      document.getElementById(`cancel-${id}`).style.display = "none";
+      const statusText = document.getElementById(`status-${id}`);
+      statusText.textContent = "Transfer canceled";
+      statusText.className = "status-label status-failed";
+      showToast("Sent transfer canceled", "red");
+    }
 
-    socket.on('file-meta', ({ fileName, fileSize }) => {
-      // Prepare to receive file
-      receivingFile = {
-        fileName,
-        fileSize,
-        receivedSize: 0,
-        chunks: []
-      };
+    function receiveFile(fileName, fileSize) {
+      const id = Date.now() + Math.floor(Math.random() * 1000);
+      const readableSize = formatBytes(fileSize);
 
-      // Create a received file card
-      const id = Date.now();
-      receivingFile.cardId = id;
-      createCard(fileName, formatBytes(fileSize), false, id);
-    });
+      const card = document.createElement("div");
+      card.className = "card";
+      card.id = `recv-card-${id}`;
+      card.innerHTML = `
+        <strong>${fileName}</strong><br>
+        <small>${readableSize}</small>
+        <div class="progress" id="recv-progress-${id}">
+          <div class="bar" id="recv-bar-${id}"></div>
+        </div>
+        <button class="cancel-btn" id="recv-cancel-${id}" onclick="cancelReceivedTransfer(${id})">Cancel</button>
+        <div class="status-label" id="recv-status-${id}"></div>
+      `;
+      receivedTab.appendChild(card);
 
-    socket.on('file-chunk', (chunk) => {
-      if (!receivingFile) return;
+      const bar = document.getElementById(`recv-bar-${id}`);
+      const statusText = document.getElementById(`recv-status-${id}`);
 
-      // Push chunk and update received size
-      receivingFile.chunks.push(chunk);
-      receivingFile.receivedSize += chunk.byteLength || chunk.length || 0;
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += 10;
+        if (progress >= 100) {
+          clearInterval(interval);
+          bar.style.width = "100%";
+          document.getElementById(`recv-progress-${id}`).style.display = "none";
+          document.getElementById(`recv-cancel-${id}`).style.display = "none";
+          statusText.textContent = "File received";
+          statusText.className = "status-label status-success";
+        } else {
+          bar.style.width = progress + "%";
+        }
+      }, 200);
 
-      // Update progress bar
-      const bar = document.getElementById(`bar-${receivingFile.cardId}`);
-      if(bar) {
-        const progressPercent = Math.floor((receivingFile.receivedSize / receivingFile.fileSize) * 100);
-        bar.style.width = progressPercent + '%';
-      }
-    });
+      bar.dataset.intervalId = interval;
+    }
 
-    socket.on('file-transfer-complete', () => {
-      if (!receivingFile) return;
+    function cancelReceivedTransfer(id) {
+      const bar = document.getElementById(`recv-bar-${id}`);
+      clearInterval(bar.dataset.intervalId);
+      bar.style.backgroundColor = "#f44336";
+      bar.style.width = "0%";
+      document.getElementById(`recv-progress-${id}`).style.display = "none";
+      document.getElementById(`recv-cancel-${id}`).style.display = "none";
+      const statusText = document.getElementById(`recv-status-${id}`);
+      statusText.textContent = "Transfer canceled";
+      statusText.className = "status-label status-failed";
+      showToast("Received transfer canceled", "red");
+    }
 
-      // Combine chunks into Blob
-      const blob = new Blob(receivingFile.chunks);
-      const url = URL.createObjectURL(blob);
+    function showToast(message, color) {
+      const toast = document.createElement("div");
+      toast.className = "toast";
+      toast.style.backgroundColor = color;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 4000);
+    }
 
-      // Update UI
-      const statusText = document.getElementById(`status-${receivingFile.cardId}`);
-      const card = document.getElementById(`received-card-${receivingFile.cardId}`);
-      if(statusText && card) {
-        statusText.textContent = "File received";
-        statusText.className = "status-label status-success";
-
-        // Add download link
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = receivingFile.fileName;
-        link.textContent = "Download";
-        link.style.display = "inline-block";
-        link.style.marginTop = "10px";
-        link.style.color = "#2196f3";
-        card.appendChild(link);
-
-        // Hide progress bar
-        const progress = document.getElementById(`progress-${receivingFile.cardId}`);
-        if(progress) progress.style.display = 'none';
-
-        // Clear receivingFile after 5 seconds
-        setTimeout(() => {
-          statusText.textContent = "";
-          if(link.parentNode) {
-            link.parentNode.removeChild(link);
-          }
-          if(progress) progress.style.display = 'block';
-          bar.style.width = '0%';
-          receivingFile = null;
-        }, 5000);
-      }
-    });
-
-    // Device count update
-    socket.on('device-count', (count) => {
-      statusDisplay.textContent = `Room: ${currentRoom} | Connected devices: ${count}`;
-    });
-
-    // Handle disconnects
-    socket.on('disconnect', () => {
-      statusDisplay.textContent = "Disconnected from server";
-      fileInput.disabled = true;
-      sendBtn.disabled = true;
-      joinBtn.disabled = false;
-      leaveBtn.disabled = true;
-      currentRoom = null;
-    });
-
+    function formatBytes(bytes) {
+      const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+      if (bytes === 0) return '0 Bytes';
+      const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+      return parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) + ' ' + sizes[i];
+    }
   </script>
 </body>
 </html>
