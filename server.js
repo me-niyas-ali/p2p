@@ -1,95 +1,67 @@
-const express = require('express');
-const http = require('http');
-const WebSocket = require('ws');
-const path = require('path');
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
+const cors = require("cors");
+const path = require("path");
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const io = new Server(server, {
+  cors: {
+    origin: "*", // On Render, restrict to your domain in production
+    methods: ["GET", "POST"]
+  }
+});
 
-const rooms = {}; // roomId: { socketId: { ws, name } }
+app.use(cors());
+app.use(express.static(path.join(__dirname, "public")));
 
-function generateId() {
-  return Math.random().toString(36).substring(2, 10);
-}
+const rooms = {};
 
-wss.on('connection', (ws) => {
-  let currentRoom = null;
-  let socketId = generateId();
-  let peerName = null;
+io.on("connection", (socket) => {
+  let joinedRoom = null;
 
-  ws.on('message', (message) => {
-    try {
-      const data = JSON.parse(message);
-      switch (data.type) {
-        case 'join':
-          currentRoom = data.roomId;
-          peerName = data.name;
-
-          rooms[currentRoom] = rooms[currentRoom] || {};
-          rooms[currentRoom][socketId] = { ws, name: peerName };
-
-          // Notify existing peers
-          Object.entries(rooms[currentRoom]).forEach(([id, peer]) => {
-            if (id !== socketId) {
-              peer.ws.send(JSON.stringify({
-                type: 'new-peer',
-                id: socketId,
-                name: peerName
-              }));
-              ws.send(JSON.stringify({
-                type: 'new-peer',
-                id,
-                name: peer.name
-              }));
-            }
-          });
-          break;
-
-        case 'offer':
-        case 'answer':
-        case 'ice':
-        case 'cancel':
-        case 'kick':
-          const target = data.target;
-          const roomPeers = rooms[currentRoom];
-          if (roomPeers && roomPeers[target]) {
-            roomPeers[target].ws.send(JSON.stringify({
-              ...data,
-              from: socketId,
-              name: peerName
-            }));
-          }
-          if (data.type === 'kick') {
-            // Remove peer from room
-            roomPeers[target].ws.close();
-            delete roomPeers[target];
-          }
-          break;
+  socket.on("join-room", (room) => {
+    if (joinedRoom) {
+      socket.leave(joinedRoom);
+      if (rooms[joinedRoom]) {
+        rooms[joinedRoom].delete(socket.id);
+        io.to(joinedRoom).emit("update-count", rooms[joinedRoom].size);
       }
-    } catch (err) {
-      console.error('Message error:', err);
     }
+
+    joinedRoom = room;
+    socket.join(room);
+    if (!rooms[room]) rooms[room] = new Set();
+    rooms[room].add(socket.id);
+    io.to(room).emit("update-count", rooms[room].size);
   });
 
-  ws.on('close', () => {
-    if (currentRoom && rooms[currentRoom]) {
-      delete rooms[currentRoom][socketId];
-      // Notify others
-      Object.values(rooms[currentRoom]).forEach(peer => {
-        peer.ws.send(JSON.stringify({
-          type: 'peer-left',
-          id: socketId
-        }));
-      });
-      if (Object.keys(rooms[currentRoom]).length === 0) {
-        delete rooms[currentRoom];
+  socket.on("start-file", (data) => {
+    socket.to(joinedRoom).emit("start-file", data);
+  });
+
+  socket.on("file-chunk", (data) => {
+    socket.to(joinedRoom).emit("file-chunk", data);
+  });
+
+  socket.on("cancel-file", (data) => {
+    socket.to(joinedRoom).emit("cancel-file", data);
+  });
+
+  socket.on("disconnect", () => {
+    if (joinedRoom && rooms[joinedRoom]) {
+      rooms[joinedRoom].delete(socket.id);
+      if (rooms[joinedRoom].size === 0) {
+        delete rooms[joinedRoom];
+      } else {
+        io.to(joinedRoom).emit("update-count", rooms[joinedRoom].size);
       }
     }
   });
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
-
-const PORT = process.env.PORT || 10000;
-server.listen(PORT, () => console.log(`Server running on ${PORT}`));
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
