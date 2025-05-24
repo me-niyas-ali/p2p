@@ -93,31 +93,6 @@
    h2, h3 { font-size: 18px; }
    button, input[type="text"], input[type="file"] { font-size: 14px; }
   }
-  
-  .toast {
-  background-color: #333;
-  color: white;
-  padding: 10px 15px;
-  margin-top: 10px;
-  border-radius: 5px;
-  min-width: 200px;
-  opacity: 0.9;
-  animation: fadein 0.3s ease, fadeout 0.3s ease 2.7s;
-}
-
-.toast.success { background-color: #4caf50; }
-.toast.error { background-color: #f44336; }
-.toast.info { background-color: #2196f3; }
-
-@keyframes fadein {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 0.9; }
-}
-
-@keyframes fadeout {
-  from { opacity: 0.9; }
-  to { opacity: 0; transform: translateX(100%); }
-}
  </style>
 </head>
 <body>
@@ -139,8 +114,6 @@
   <h3>Received Files</h3>
  </div>
 </div>
-
-<div id="toastContainer" style="position: fixed; bottom: 20px; right: 20px; z-index: 1000;"></div>
 
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
@@ -173,7 +146,6 @@ function joinRoom() {
 
 socket.on('update-count', (count) => {
  document.getElementById('connectedDisplay').innerText = `Connected: ${count}`;
-  showToast("Connected", "success");
 });
 
 document.getElementById('fileInput').addEventListener('change', e => {
@@ -227,7 +199,12 @@ function sendFile() {
    readSlice();
   } else {
    document.getElementById("progressBar").style.display = "none";
-   showToast("File Sent", "success");
+   const msg = document.createElement("p");
+   msg.textContent = "File Sent";
+   msg.style.color = "green";
+   card.appendChild(msg);
+   cancelBtn.remove();
+   setTimeout(() => msg.remove(), 5000);
   }
  };
 
@@ -258,7 +235,7 @@ socket.on("start-file", ({ name, size }) => {
  cancelBtn.onclick = () => {
   activeReceives[name] = false;
   cancelBtn.disabled = true;
-  showToast("Transfer cancelled", "error");
+  card.innerHTML += `<p style="color:red">Transfer cancelled</p>`;
   socket.emit("cancel-file", { room, name });
  };
  card.appendChild(cancelBtn);
@@ -287,9 +264,14 @@ socket.on("file-chunk", ({ name, data, done }) => {
 
   const card = bar.closest(".card");
   bar.style.display = "none";
-  showToast("File Received", "success");
+
+  const msg = document.createElement("p");
+  msg.textContent = "File Received";
+  msg.style.color = "blue";
   card.appendChild(msg);
   card.appendChild(link);
+
+  setTimeout(() => msg.remove(), 5000);
 
   cleanupReceive(name);
  }
@@ -306,7 +288,10 @@ socket.on("cancel-file", ({ name }) => {
   if (bar) bar.style.display = "none";
 
   const card = bar.closest(".card");
-  showToast("Transfer Cancelled by sender", "error");
+  const msg = document.createElement("p");
+  msg.textContent = "Transfer Cancelled by sender";
+  msg.style.color = "red";
+  card.appendChild(msg);
  }
 
  cleanupReceive(name);
@@ -316,14 +301,6 @@ function cleanupReceive(name) {
  delete receivedBuffers[name];
  delete receivingCards[name];
  delete activeReceives[name];
-}
-
-function showToast(message, type = 'info') {
-  const toast = document.createElement('div');
-  toast.className = `toast ${type}`;
-  toast.textContent = message;
-  document.getElementById('toastContainer').appendChild(toast);
-  setTimeout(() => toast.remove(), 3000);
 }
 </script>
 </body>
