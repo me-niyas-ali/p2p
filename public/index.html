@@ -300,7 +300,13 @@
    name, data, done
   }) => {
    if (!received[name] || received[name].cancel) {
+    // Show Cancel message
+     const msg = document.createElement("p");
+     msg.textContent = "Receiver cancelled";
+     msg.style.color = "red";
+     document.querySelector("#fileCardContainer .card").appendChild(msg);
     showToast("Receiver cancelled", "error");
+    
     delete received[name];
     return;
    }
