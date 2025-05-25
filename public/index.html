@@ -223,10 +223,12 @@
   };
 
   socket.on('file-meta', meta => {
-   downloadBtn.classList.add('hidden');
    let chunks = [];
    let received = 0;
    const total = meta.size;
+   let fileName = meta.name;
+
+   downloadBtn.classList.add('hidden');
    transferLabel.textContent = "Receiving...";
    progressCard.classList.remove('hidden');
 
@@ -236,12 +238,11 @@
     updateProgress(received, total);
 
     if (received >= total) {
-     const blob = new Blob(receivedBuffers[name].buffers);
-     const link = document.createElement("a");
-     link.href = URL.createObjectURL(blob);
-     link.download = name;
-     link.className = "download-link";
-     link.textContent = `⬇️ Download (${formatBytes(receivedBuffers[name].size)})`;
+     const blob = new Blob(chunks);
+     const url = URL.createObjectURL(blob);
+     downloadBtn.href = url;
+     downloadBtn.download = fileName;
+     downloadBtn.classList.remove('hidden');
      notify("File Received");
      resetProgress();
     }
