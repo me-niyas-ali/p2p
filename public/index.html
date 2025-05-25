@@ -223,6 +223,16 @@ socket.on('update-count', (count) => {
  document.getElementById('connectedDisplay').innerText = `Connected: ${count}`;
 });
 
+const socket = io({ reconnection: true, reconnectionAttempts: Infinity, reconnectionDelay: 1000 });
+
+socket.on('disconnect', (reason) => {
+  showToast(`Disconnected: ${reason}`, "error");
+});
+socket.on('reconnect', () => {
+  showToast("Reconnected to server", "success");
+  if (room) socket.emit('join-room', room); // Rejoin room on reconnect
+});
+
 document.getElementById('fileInput').addEventListener('change', e => {
  file = e.target.files[0];
  if (file) {
@@ -239,7 +249,7 @@ document.getElementById('fileInput').addEventListener('change', e => {
 function sendFile() {
  if (!file || !room) return;
 
- const chunkSize = 64 * 1024;
+ const chunkSize = 32 * 1024;
  let offset = 0;
  const reader = new FileReader();
  currentSend.cancel = false;
