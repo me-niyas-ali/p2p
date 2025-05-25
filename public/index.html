@@ -102,11 +102,30 @@
   .toast {
    background-color: #333;
    color: #fff;
-   padding: 12px 16px;
+   padding: 10px 16px;
    border-radius: 8px;
    min-width: 200px;
    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-   animation: fadeInOut 4s forwards;
+   animation: fadeInOut forwards;
+   min-width: 100px;
+   display: flex;
+   justify-content: space-around;
+   align-items: center;
+  }
+  
+  .toast .close-btn {
+   position: relative;
+   right: -10px;
+   top: 8px;
+   background: none;
+   padding: 5px;
+   font-size: 18px;
+   font-weight:bold;
+   color: #fff;
+   border: 2px solid white;;
+   cursor: pointer;
+   text-align:center;
+   max-width: 50px;
   }
 
   .toast.success { background-color: #4caf50; }
@@ -115,9 +134,7 @@
 
   @keyframes fadeInOut {
    0% { opacity: 0; transform: translateY(20px); }
-   10% { opacity: 1; transform: translateY(0); }
-   90% { opacity: 1; transform: translateY(0); }
-   100% { opacity: 0; transform: translateY(20px); }
+   100% { opacity: 1; transform: translateY(0); }
   }
 
   @media (max-width: 400px) {
@@ -168,13 +185,27 @@ function formatBytes(bytes) {
 }
 
 function showToast(message, type = "info") {
- const container = document.getElementById("toastContainer");
- const toast = document.createElement("div");
- toast.className = `toast ${type}`;
- toast.textContent = message;
- container.appendChild(toast);
- setTimeout(() => container.removeChild(toast), 4000);
+  const container = document.getElementById("toastContainer");
+  const toast = document.createElement("div");
+  toast.className = `toast ${type}`;
+
+  const content = document.createElement("span");
+  content.textContent = message;
+
+  const closeBtn = document.createElement("button");
+  closeBtn.textContent = "✕";
+  closeBtn.className = "close-btn";
+  closeBtn.onclick = () => toast.remove();
+
+  toast.appendChild(content);
+  toast.appendChild(closeBtn);
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    if (toast.parentElement) toast.remove();
+  }, 20000); // 20 seconds
 }
+
 
 function joinRoom() {
  const code = document.getElementById('roomInput').value.trim();
