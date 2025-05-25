@@ -128,154 +128,180 @@
  </div>
 
  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
- <script>
-  const socket = io();
-  let room = null;
-  let file = null;
+ <!-- Add inside <body> just before </body> -->
+<div id="toastContainer" style="position: fixed; bottom: 20px; right: 20px; z-index: 999;"></div>
 
-  function formatBytes(bytes) {
-   const sizes = ['B',
-    'KB',
-    'MB',
-    'GB',
-    'TB'];
-   if (bytes === 0) return '0 B';
-   const i = Math.floor(Math.log(bytes) / Math.log(1024));
-   return (bytes / Math.pow(1024, i)).toFixed(2).replace(/\.00$/, '') + ' ' + sizes[i];
-  }
+<script>
+const socket = io(); // Connect to server
+let room = null;
+let file = null;
+let cancelTransfer = false;
 
-  function joinRoom() {
-   const code = document.getElementById('roomInput').value.trim();
-   if (code.length === 6) {
+// Show simple toast messages
+function showToast(msg, type = "info") {
+  const toast = document.createElement("div");
+  toast.textContent = msg;
+  toast.style = `
+    background: ${type === "success" ? "#4caf50" : type === "error" ? "#f44336" : "#2196f3"};
+    color: #fff;
+    padding: 10px 20px;
+    margin-top: 10px;
+    border-radius: 5px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    transition: opacity 0.5s ease;
+  `;
+  document.getElementById("toastContainer").appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = "0";
+    setTimeout(() => toast.remove(), 500);
+  }, 4000);
+}
+
+// Format bytes to KB/MB
+function formatBytes(bytes) {
+  const sizes = ['B', 'KB', 'MB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + sizes[i];
+}
+
+// Join room with 6-digit code
+function joinRoom() {
+  const code = document.getElementById('roomInput').value.trim();
+  if (code.length === 6) {
     room = code;
     document.getElementById('roomDisplay').innerText = 'Room Code: ' + room;
     socket.emit('join-room', room);
-   } else {
-    alert("Please enter a valid 6-digit room ID.");
-   }
+    showToast("Joined room " + room, "success");
+  } else {
+    alert("Enter valid 6-digit room code.");
   }
+}
 
-  socket.on('update-count', (count) => {
-   document.getElementById('connectedDisplay').innerText = `Connected: ${count}`;
-  });
+// Update connected device count
+socket.on('update-count', count => {
+  document.getElementById('connectedDisplay').innerText = `Connected: ${count}`;
+});
 
-  document.getElementById('fileInput').addEventListener('change', e => {
-   file = e.target.files[0];
-   if (file) {
+// When file is selected
+document.getElementById('fileInput').addEventListener('change', e => {
+  file = e.target.files[0];
+  if (file) {
+    // Show file card with cancel button
     document.getElementById("fileCardContainer").innerHTML = `
-    <div class="card">
-    <p><strong>${file.name}</strong></p>
-    <p>${formatBytes(file.size)}</p>
-    <div class="progress"><div id="progressBar" class="bar"></div></div>
-    </div>
+      <div class="card">
+        <p><strong>${file.name}</strong></p>
+        <p>${formatBytes(file.size)}</p>
+        <p id="sendSize">0 / ${formatBytes(file.size)}</p>
+        <div class="progress"><div id="progressBar" class="bar"></div></div>
+        <button onclick="cancelTransfer = true">Cancel</button>
+      </div>
     `;
-   }
+  }
+});
+
+// Send file in chunks
+function sendFile() {
+  if (!file || !room) return;
+
+  const chunkSize = 64 * 1024; // 64 KB
+  let offset = 0;
+  const reader = new FileReader();
+  cancelTransfer = false;
+
+  // Tell receiver file is starting
+  socket.emit("start-file", {
+    room, name: file.name, size: file.size
   });
 
-  function sendFile() {
-   if (!file || !room) return;
+  // When chunk is read
+  reader.onload = e => {
+    if (cancelTransfer) {
+      showToast("Sender cancelled", "error");
+      return;
+    }
 
-   const chunkSize = 64 * 1024;
-   let offset = 0;
-   const reader = new FileReader();
-
-   socket.emit("start-file", {
-    room, name: file.name, size: file.size
-   });
-
-   reader.onload = (e) => {
     const done = offset + chunkSize >= file.size;
 
     socket.emit("file-chunk", {
-     room,
-     name: file.name,
-     data: e.target.result,
-     done
+      room,
+      name: file.name,
+      data: e.target.result,
+      done
     });
 
     offset += chunkSize;
+
+    // Update progress
     document.getElementById("progressBar").style.width = `${(offset / file.size) * 100}%`;
+    document.getElementById("sendSize").innerText = `${formatBytes(offset)} / ${formatBytes(file.size)}`;
 
-    if (!done) {
-     readSlice();
-    } else {
-     const progressBar = document.getElementById("progressBar");
-     progressBar.style.display = "none";
+    if (!done) readNext();
+    else showToast("File sent", "success");
+  };
 
-     const msg = document.createElement("p");
-     msg.textContent = "File Sent";
-     msg.style.color = "green";
-     document.querySelector("#fileCardContainer .card").appendChild(msg);
-
-     setTimeout(() => msg.remove(), 5000);
-    }
-   };
-
-   function readSlice() {
+  // Read next slice
+  function readNext() {
     const slice = file.slice(offset, offset + chunkSize);
     reader.readAsArrayBuffer(slice);
-   }
-
-   readSlice();
   }
 
-  const receivedBuffers = {};
-  const receivingCards = {};
+  readNext();
+}
 
-  socket.on("start-file", ({
-   name, size
-  }) => {
-   receivedBuffers[name] = {
+// Prepare to receive file
+const received = {}; // Store ongoing file chunks
+
+socket.on("start-file", ({ name, size }) => {
+  received[name] = {
     size, buffers: [], receivedSize: 0
-   };
+  };
 
-   const id = name.replace(/\W/g, '');
-   const card = document.createElement("div");
-   card.className = "card";
-   card.innerHTML = `
-   <p><strong>${name}</strong></p>
-   <p>${formatBytes(size)}</p>
-   <div class="progress"><div class="bar" id="recv-${id}"></div></div>
-   `;
-   document.getElementById("receivedFiles").appendChild(card);
-   receivingCards[name] = `recv-${id}`;
-  });
+  const id = name.replace(/\W/g, '');
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = `
+    <p><strong>${name}</strong></p>
+    <p>${formatBytes(size)}</p>
+    <p id="recvSize-${id}">0 / ${formatBytes(size)}</p>
+    <div class="progress"><div class="bar" id="recvBar-${id}"></div></div>
+    <button onclick="received['${name}'].cancel = true">Cancel</button>
+  `;
+  document.getElementById("receivedFiles").appendChild(card);
+});
 
-  socket.on("file-chunk", ({
-   name, data, done
-  }) => {
-   if (!receivedBuffers[name]) return;
+// Receive file chunks
+socket.on("file-chunk", ({ name, data, done }) => {
+  if (!received[name] || received[name].cancel) {
+    showToast("Receiver cancelled", "error");
+    delete received[name];
+    return;
+  }
 
-   receivedBuffers[name].buffers.push(data);
-   receivedBuffers[name].receivedSize += data.byteLength;
+  received[name].buffers.push(data);
+  received[name].receivedSize += data.byteLength;
 
-   const bar = document.getElementById(receivingCards[name]);
-   const percentage = (receivedBuffers[name].receivedSize / receivedBuffers[name].size) * 100;
-   bar.style.width = `${percentage}%`;
+  const id = name.replace(/\W/g, '');
+  const bar = document.getElementById(`recvBar-${id}`);
+  bar.style.width = `${(received[name].receivedSize / received[name].size) * 100}%`;
 
-   if (done) {
-    const blob = new Blob(receivedBuffers[name].buffers);
+  document.getElementById(`recvSize-${id}`).innerText =
+    `${formatBytes(received[name].receivedSize)} / ${formatBytes(received[name].size)}`;
+
+  // File complete
+  if (done) {
+    const blob = new Blob(received[name].buffers);
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = name;
+    link.textContent = "⬇️ Download";
     link.className = "download-link";
-    link.textContent = `⬇️ Download (${formatBytes(receivedBuffers[name].size)})`;
+    document.getElementById(`recvBar-${id}`).closest(".card").appendChild(link);
+    showToast("File received", "info");
+    delete received[name];
+  }
+});
+</script>
 
-    const card = bar.closest(".card");
-    bar.style.display = "none";
 
-    const msg = document.createElement("p");
-    msg.textContent = "File Received";
-    msg.style.color = "blue";
-    card.appendChild(msg);
-    card.appendChild(link);
-
-    setTimeout(() => msg.remove(), 5000);
-
-    delete receivedBuffers[name];
-    delete receivingCards[name];
-   }
-  });
- </script>
 </body>
 </html>
