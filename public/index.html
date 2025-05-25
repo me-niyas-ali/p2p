@@ -217,9 +217,15 @@
 
    reader.onload = e => {
     if (cancelTransfer) {
+     // Show success message
+     const msg = document.createElement("p");
+     msg.textContent = "Transfer cancelled";
+     msg.style.color = "red";
+     document.querySelector("#fileCardContainer .card").appendChild(msg);
      showToast("Transfer cancelled", "error");
 
      document.getElementById("progressBar").style.display = "none";
+     document.querySelector(".progress").style.display = "none";
      const cancelBtn = document.querySelector("#fileCardContainer .card button");
      if (cancelBtn) cancelBtn.style.display = "none";
 
