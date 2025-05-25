@@ -275,6 +275,8 @@ function sendFile() {
   } else {
    document.getElementById("progressBar").style.display = "none";
    cancelBtn.remove();
+   document.getElementById("fileInput").value = ""; // Reset input
+   file = null; // Clear selected file reference
    showToast("File Sent", "success");
   }
  };
@@ -346,6 +348,8 @@ socket.on("file-chunk", ({ name, data, done }) => {
 socket.on("cancel-file", ({ name }) => {
  if (currentSend.name === name) {
   currentSend.cancel = true;
+  document.getElementById("fileInput").value = ""; // Reset input
+  file = null;
  }
 
  if (activeReceives[name]) {
