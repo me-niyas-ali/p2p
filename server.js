@@ -1,43 +1,61 @@
-
+// server.js
 const express = require('express');
 const http = require('http');
-const socketIo = require('socket.io');
-
+const { Server } = require('socket.io');
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server);
+const io = new Server(server);
 
+const rooms = {}; // Stores connected sockets per room
+
+// Serve static files (your HTML should be in a folder named "public")
 app.use(express.static('public'));
 
-const rooms = {};
-
+// Handle socket connection
 io.on('connection', (socket) => {
-  socket.on('join-room', (roomId) => {
-    socket.join(roomId);
-    if (!rooms[roomId]) rooms[roomId] = [];
-    rooms[roomId].push(socket.id);
-    io.to(roomId).emit('room-joined', { roomId, devices: rooms[roomId].length });
-    io.to(roomId).emit('update-devices', rooms[roomId].length);
+  let currentRoom = null;
+
+  // Handle room joining
+  socket.on('join-room', (room) => {
+    currentRoom = room;
+    socket.join(room);
+
+    if (!rooms[room]) rooms[room] = new Set();
+    rooms[room].add(socket.id);
+
+    // Send updated device count to room
+    io.to(room).emit('update-count', rooms[room].size);
+
+    // Handle disconnect
+    socket.on('disconnect', () => {
+      if (rooms[room]) {
+        rooms[room].delete(socket.id);
+        if (rooms[room].size === 0) delete rooms[room];
+        else io.to(room).emit('update-count', rooms[room].size);
+      }
+    });
   });
 
-  socket.on('leave-room', (roomId) => {
-    socket.leave(roomId);
-    rooms[roomId] = rooms[roomId].filter(id => id !== socket.id);
-    io.to(roomId).emit('room-exited');
-    if (rooms[roomId].length === 0) delete rooms[roomId];
+  // Relay file sending start
+  socket.on('start-file', (data) => {
+    socket.to(data.room).emit('start-file', {
+      name: data.name,
+      size: data.size
+    });
   });
 
-  socket.on('signal', ({ roomId, desc, candidate }) => {
-    socket.to(roomId).emit('signal', { desc, candidate });
-  });
-
-  socket.on('disconnect', () => {
-    for (const roomId in rooms) {
-      rooms[roomId] = rooms[roomId].filter(id => id !== socket.id);
-      io.to(roomId).emit('update-devices', rooms[roomId].length);
-      if (rooms[roomId].length === 0) delete rooms[roomId];
-    }
+  // Relay file chunks
+  socket.on('file-chunk', (data) => {
+    socket.to(data.room).emit('file-chunk', {
+      name: data.name,
+      data: data.data,
+      done: data.done
+    });
   });
 });
 
-server.listen(3000, () => console.log('Server running on http://localhost:3000'));
+// Start server
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});
