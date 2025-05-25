@@ -129,178 +129,209 @@
 
  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
  <!-- Add inside <body> just before </body> -->
-<div id="toastContainer" style="position: fixed; bottom: 20px; right: 20px; z-index: 999;"></div>
+ <div id="toastContainer" style="position: fixed; bottom: 20px; right: 20px; z-index: 999;"></div>
 
-<script>
-const socket = io(); // Connect to server
-let room = null;
-let file = null;
-let cancelTransfer = false;
+ <script>
+  const socket = io(); // Connect to server
+  let room = null;
+  let file = null;
+  let cancelTransfer = false;
 
-// Show simple toast messages
-function showToast(msg, type = "info") {
-  const toast = document.createElement("div");
-  toast.textContent = msg;
-  toast.style = `
-    background: ${type === "success" ? "#4caf50" : type === "error" ? "#f44336" : "#2196f3"};
-    color: #fff;
-    padding: 10px 20px;
-    margin-top: 10px;
-    border-radius: 5px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-    transition: opacity 0.5s ease;
-  `;
-  document.getElementById("toastContainer").appendChild(toast);
-  setTimeout(() => {
+  // Show simple toast messages
+  function showToast(msg, type = "info") {
+   const toast = document.createElement("div");
+   toast.textContent = msg;
+   toast.style = `
+   background: ${type === "success" ? "#4caf50": type === "error" ? "#f44336": "#2196f3"};
+   color: #fff;
+   padding: 10px 20px;
+   margin-top: 10px;
+   border-radius: 5px;
+   box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+   transition: opacity 0.5s ease;
+   `;
+   document.getElementById("toastContainer").appendChild(toast);
+   setTimeout(() => {
     toast.style.opacity = "0";
     setTimeout(() => toast.remove(), 500);
-  }, 4000);
-}
+   }, 4000);
+  }
 
-// Format bytes to KB/MB
-function formatBytes(bytes) {
-  const sizes = ['B', 'KB', 'MB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + sizes[i];
-}
+  // Format bytes to KB/MB
+  function formatBytes(bytes) {
+   const sizes = ['B',
+    'KB',
+    'MB'];
+   const i = Math.floor(Math.log(bytes) / Math.log(1024));
+   return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + sizes[i];
+  }
 
-// Join room with 6-digit code
-function joinRoom() {
-  const code = document.getElementById('roomInput').value.trim();
-  if (code.length === 6) {
+  // Join room with 6-digit code
+  function joinRoom() {
+   const code = document.getElementById('roomInput').value.trim();
+   if (code.length === 6) {
     room = code;
     document.getElementById('roomDisplay').innerText = 'Room Code: ' + room;
     socket.emit('join-room', room);
     showToast("Joined room " + room, "success");
-  } else {
+   } else {
     alert("Enter valid 6-digit room code.");
+   }
   }
-}
 
-// Update connected device count
-socket.on('update-count', count => {
-  document.getElementById('connectedDisplay').innerText = `Connected: ${count}`;
-});
-
-// When file is selected
-document.getElementById('fileInput').addEventListener('change', e => {
-  file = e.target.files[0];
-  if (file) {
-    // Show file card with cancel button
-    document.getElementById("fileCardContainer").innerHTML = `
-      <div class="card">
-        <p><strong>${file.name}</strong></p>
-        <p>${formatBytes(file.size)}</p>
-        <p id="sendSize">0 / ${formatBytes(file.size)}</p>
-        <div class="progress"><div id="progressBar" class="bar"></div></div>
-        <button onclick="cancelTransfer = true">Cancel</button>
-      </div>
-    `;
-  }
-});
-
-// Send file in chunks
-function sendFile() {
-  if (!file || !room) return;
-
-  const chunkSize = 64 * 1024; // 64 KB
-  let offset = 0;
-  const reader = new FileReader();
-  cancelTransfer = false;
-
-  // Tell receiver file is starting
-  socket.emit("start-file", {
-    room, name: file.name, size: file.size
+  // Update connected device count
+  socket.on('update-count', count => {
+   document.getElementById('connectedDisplay').innerText = `Connected: ${count}`;
   });
 
-  // When chunk is read
-  reader.onload = e => {
+  // When file is selected
+  document.getElementById('fileInput').addEventListener('change', e => {
+   file = e.target.files[0];
+  });
+
+  // Send file in chunks
+  function sendFile() {
+   if (!file || !room) {
+    alert("Select a file and join a room first.");
+    return;
+   }
+
+   // Create file card when sending
+   document.getElementById("fileCardContainer").innerHTML = `
+   <div class="card">
+   <p><strong>${file.name}</strong></p>
+   <p id="sendSize">0 / ${formatBytes(file.size)}</p>
+   <div class="progress"><div id="progressBar" class="bar"></div></div>
+   <button onclick="cancelTransfer = true">Cancel</button>
+   </div>
+   `;
+
+   const chunkSize = 64 * 1024; // 64 KB
+   let offset = 0;
+   const reader = new FileReader();
+   cancelTransfer = false;
+
+   socket.emit("start-file", {
+    room, name: file.name, size: file.size
+   });
+
+   reader.onload = e => {
     if (cancelTransfer) {
-      showToast("Sender cancelled", "error");
-      return;
+     showToast("Transfer cancelled", "error");
+
+     document.getElementById("progressBar").style.display = "none";
+     const cancelBtn = document.querySelector("#fileCardContainer .card button");
+     if (cancelBtn) cancelBtn.style.display = "none";
+
+     return;
     }
 
     const done = offset + chunkSize >= file.size;
 
     socket.emit("file-chunk", {
-      room,
-      name: file.name,
-      data: e.target.result,
-      done
+     room,
+     name: file.name,
+     data: e.target.result,
+     done
     });
 
     offset += chunkSize;
-
-    // Update progress
     document.getElementById("progressBar").style.width = `${(offset / file.size) * 100}%`;
     document.getElementById("sendSize").innerText = `${formatBytes(offset)} / ${formatBytes(file.size)}`;
 
-    if (!done) readNext();
-    else showToast("File sent", "success");
-  };
+    if (!done) {
+     readNext();
+    } else {
+     // Hide progress bar and cancel button
+     document.getElementById("progressBar").style.display = "none";
+     document.querySelector("#fileCardContainer .card button").style.display = "none";
+     document.querySelector(".progress").style.display = "none";
 
-  // Read next slice
-  function readNext() {
+     // Show success message
+     const msg = document.createElement("p");
+     msg.textContent = "File Sent";
+     msg.style.color = "green";
+     document.querySelector("#fileCardContainer .card").appendChild(msg);
+
+     showToast("File sent", "success");
+    }
+
+   };
+
+   function readNext() {
     const slice = file.slice(offset, offset + chunkSize);
     reader.readAsArrayBuffer(slice);
+   }
+
+   readNext();
   }
 
-  readNext();
-}
+  // Prepare to receive file
+  const received = {}; // Store ongoing file chunks
 
-// Prepare to receive file
-const received = {}; // Store ongoing file chunks
-
-socket.on("start-file", ({ name, size }) => {
-  received[name] = {
+  socket.on("start-file", ({
+   name, size
+  }) => {
+   received[name] = {
     size, buffers: [], receivedSize: 0
-  };
+   };
 
-  const id = name.replace(/\W/g, '');
-  const card = document.createElement("div");
-  card.className = "card";
-  card.innerHTML = `
-    <p><strong>${name}</strong></p>
-    <p>${formatBytes(size)}</p>
-    <p id="recvSize-${id}">0 / ${formatBytes(size)}</p>
-    <div class="progress"><div class="bar" id="recvBar-${id}"></div></div>
-    <button onclick="received['${name}'].cancel = true">Cancel</button>
-  `;
-  document.getElementById("receivedFiles").appendChild(card);
-});
+   const id = name.replace(/\W/g, '');
+   const card = document.createElement("div");
+   card.className = "card";
+   card.innerHTML = `
+   <p><strong>${name}</strong></p>
+   <p>${formatBytes(size)}</p>
+   <p id="recvSize-${id}">0 / ${formatBytes(size)}</p>
+   <div class="progress"><div class="bar" id="recvBar-${id}"></div></div>
+   <button onclick="received['${name}'].cancel = true">Cancel</button>
+   `;
+   document.getElementById("receivedFiles").appendChild(card);
+  });
 
-// Receive file chunks
-socket.on("file-chunk", ({ name, data, done }) => {
-  if (!received[name] || received[name].cancel) {
+  // Receive file chunks
+  socket.on("file-chunk", ({
+   name, data, done
+  }) => {
+   if (!received[name] || received[name].cancel) {
     showToast("Receiver cancelled", "error");
     delete received[name];
     return;
-  }
+   }
 
-  received[name].buffers.push(data);
-  received[name].receivedSize += data.byteLength;
+   received[name].buffers.push(data);
+   received[name].receivedSize += data.byteLength;
 
-  const id = name.replace(/\W/g, '');
-  const bar = document.getElementById(`recvBar-${id}`);
-  bar.style.width = `${(received[name].receivedSize / received[name].size) * 100}%`;
+   const id = name.replace(/\W/g, '');
+   const bar = document.getElementById(`recvBar-${id}`);
+   bar.style.width = `${(received[name].receivedSize / received[name].size) * 100}%`;
 
-  document.getElementById(`recvSize-${id}`).innerText =
-    `${formatBytes(received[name].receivedSize)} / ${formatBytes(received[name].size)}`;
+   document.getElementById(`recvSize-${id}`).innerText =
+   `${formatBytes(received[name].receivedSize)} / ${formatBytes(received[name].size)}`;
 
-  // File complete
-  if (done) {
-    const blob = new Blob(received[name].buffers);
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = name;
-    link.textContent = "⬇️ Download";
-    link.className = "download-link";
-    document.getElementById(`recvBar-${id}`).closest(".card").appendChild(link);
+   // File complete
+   if (done) {
+    // Hide progress bar
+    bar.style.display = "none";
+
+    // Hide cancel button if present (optional, if you add one on receiver side)
+    const cancelBtn = card.querySelector("button");
+    if (cancelBtn) cancelBtn.style.display = "none";
+
+    // Show download + message
+    const msg = document.createElement("p");
+    msg.textContent = "File Received";
+    msg.style.color = "blue";
+    card.appendChild(msg);
+    card.appendChild(link);
+
     showToast("File received", "info");
-    delete received[name];
-  }
-});
-</script>
+
+    delete receivedBuffers[name];
+    delete receivingCards[name];
+   }
+  });
+ </script>
 
 
 </body>
