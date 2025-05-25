@@ -1,67 +1,46 @@
-const express = require("express");
-const http = require("http");
-const { Server } = require("socket.io");
-const cors = require("cors");
-const path = require("path");
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: "*", // On Render, restrict to your domain in production
-    methods: ["GET", "POST"]
-  }
-});
+const io = new Server(server);
 
-app.use(cors());
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, 'public')));
 
 const rooms = {};
 
-io.on("connection", (socket) => {
-  let joinedRoom = null;
+io.on('connection', socket => {
+  console.log('User connected:', socket.id);
 
-  socket.on("join-room", (room) => {
-    if (joinedRoom) {
-      socket.leave(joinedRoom);
-      if (rooms[joinedRoom]) {
-        rooms[joinedRoom].delete(socket.id);
-        io.to(joinedRoom).emit("update-count", rooms[joinedRoom].size);
-      }
+  socket.on('join-room', roomId => {
+    socket.join(roomId);
+    if (!rooms[roomId]) rooms[roomId] = [];
+    rooms[roomId].push(socket.id);
+    console.log(`User ${socket.id} joined room ${roomId}`);
+    socket.to(roomId).emit('user-joined', socket.id);
+  });
+
+  socket.on('signal', ({ roomId, data, target }) => {
+    if (target) {
+      io.to(target).emit('signal', { from: socket.id, data });
+    } else {
+      socket.to(roomId).emit('signal', { from: socket.id, data });
     }
-
-    joinedRoom = room;
-    socket.join(room);
-    if (!rooms[room]) rooms[room] = new Set();
-    rooms[room].add(socket.id);
-    io.to(room).emit("update-count", rooms[room].size);
   });
 
-  socket.on("start-file", (data) => {
-    socket.to(joinedRoom).emit("start-file", data);
+  socket.on('disconnecting', () => {
+    const roomsLeft = Array.from(socket.rooms);
+    roomsLeft.forEach(room => {
+      socket.to(room).emit('user-left', socket.id);
+    });
   });
 
-  socket.on("file-chunk", (data) => {
-    socket.to(joinedRoom).emit("file-chunk", data);
-  });
-
-  socket.on("cancel-file", (data) => {
-    socket.to(joinedRoom).emit("cancel-file", data);
-  });
-
-  socket.on("disconnect", () => {
-    if (joinedRoom && rooms[joinedRoom]) {
-      rooms[joinedRoom].delete(socket.id);
-      if (rooms[joinedRoom].size === 0) {
-        delete rooms[joinedRoom];
-      } else {
-        io.to(joinedRoom).emit("update-count", rooms[joinedRoom].size);
-      }
-    }
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
   });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+server.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
