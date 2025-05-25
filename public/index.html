@@ -322,27 +322,40 @@
    `${formatBytes(received[name].receivedSize)} / ${formatBytes(received[name].size)}`;
 
    // File complete
-   if (done) {
-    // Hide progress bar
-    bar.style.display = "none";
+if (done) {
+// Hide progress bar
+bar.style.display = "none";
 
-    // Hide cancel button if present (optional, if you add one on receiver side)
-    const cancelBtn = card.querySelector("button");
-    if (cancelBtn) cancelBtn.style.display = "none";
+ // Hide cancel button
+ const cancelBtn = card.querySelector("button");
+if (cancelBtn) cancelBtn.style.display = "none";
 
-    // Show download + message
-    const msg = document.createElement("p");
-    msg.textContent = "File Received";
-    msg.style.color = "blue";
-    card.appendChild(msg);
-    card.appendChild(link);
+ // Combine chunks into a single Blob
+const blob = new Blob(received[name].buffers);
+const url = URL.createObjectURL(blob);
 
-    showToast("File received", "info");
+// Create download link with size info
+const downloadLink = document.createElement("a");
+downloadLink.href = url;
+downloadLink.download = name;
+downloadLink.textContent = `Download (${formatBytes(received[name].size)})`;
+downloadLink.style.display = "inline-block";
+downloadLink.style.marginTop = "8px";
+downloadLink.style.color = "green";
 
-    delete receivedBuffers[name];
-    delete receivingCards[name];
-   }
-  });
+// Success message
+const msg = document.createElement("p");
+msg.textContent = "File Received";
+msg.style.color = "blue";
+
+card.appendChild(msg);
+card.appendChild(downloadLink);
+showToast("File received", "info");
+
+ // Clean up
+ delete received[name];
+}
+
  </script>
 
 
