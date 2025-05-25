@@ -226,13 +226,14 @@
    let chunks = [];
    let received = 0;
    const total = meta.size;
-   let fileName = meta.name;
+   const fileName = meta.name;
 
    downloadBtn.classList.add('hidden');
    transferLabel.textContent = "Receiving...";
    progressCard.classList.remove('hidden');
 
-   socket.on('file-chunk', data => {
+   // Define handler outside to avoid multiple bindings
+   const chunkHandler = data => {
     chunks.push(new Uint8Array(data));
     received += data.byteLength;
     updateProgress(received, total);
@@ -245,14 +246,22 @@
      downloadBtn.classList.remove('hidden');
      notify("File Received");
      resetProgress();
+
+     // Detach the listener after file is fully received
+     socket.off('file-chunk', chunkHandler);
     }
-   });
+   };
+
+   // Attach listener
+   socket.on('file-chunk', chunkHandler);
   });
+
 
   cancelBtn.onclick = () => {
    socket.emit('cancel-transfer');
    resetProgress();
-   notify("Transfer Cancelled", 'error');
+   notify("Transfer Cancelled",
+    'error');
   };
 
   function updateProgress(sent, total) {
