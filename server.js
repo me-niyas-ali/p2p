@@ -1,90 +1,65 @@
 const express = require('express');
 const http = require('http');
+const { Server } = require('socket.io');
 const path = require('path');
+
 const app = express();
 const server = http.createServer(app);
-const { Server } = require('socket.io');
-const io = new Server(server);
+const io = new Server(server, {
+  cors: {
+    origin: "*", // Use exact domain in production
+    methods: ["GET", "POST"]
+  }
+});
 
-const PORT = process.env.PORT || 3000;
-
+// Serve static files (your HTML/CSS/JS build)
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Track users per room
 const rooms = {};
 
 io.on('connection', (socket) => {
-  console.log('A user connected:', socket.id);
+  console.log('New socket connected:', socket.id);
 
   socket.on('join-room', (roomId) => {
-    roomId = roomId.trim();
-    if (!roomId) return;
-
     socket.join(roomId);
-    console.log(`Socket ${socket.id} joined room ${roomId}`);
+    const clients = io.sockets.adapter.rooms.get(roomId) || new Set();
 
-    // Add to room tracking
-    if (!rooms[roomId]) rooms[roomId] = new Set();
-    rooms[roomId].add(socket.id);
-
-    // Notify this socket
-    socket.emit('room-joined', roomId);
-
-    // Broadcast user count to room
-    io.to(roomId).emit('update-user-count', rooms[roomId].size);
-  });
-
-  socket.on('leave-room', (roomId) => {
-    roomId = roomId.trim();
-    socket.leave(roomId);
-    console.log(`Socket ${socket.id} left room ${roomId}`);
-
-    if (rooms[roomId]) {
-      rooms[roomId].delete(socket.id);
-      if (rooms[roomId].size === 0) {
-        delete rooms[roomId];
-      } else {
-        io.to(roomId).emit('update-user-count', rooms[roomId].size);
-      }
+    if (clients.size === 1) {
+      rooms[socket.id] = roomId;
+      socket.emit('init-host');
+    } else if (clients.size === 2) {
+      rooms[socket.id] = roomId;
+      socket.emit('init-guest');
+      // Notify both peers
+      io.to(roomId).emit('peer-ready');
+    } else {
+      socket.emit('room-full');
     }
-
-    socket.emit('room-left');
   });
 
-  socket.on('file-meta', ({ roomId, fileName, fileSize }) => {
-    // Broadcast to everyone else in room except sender
-    socket.to(roomId).emit('file-meta', { fileName, fileSize });
+  socket.on('signal', (payload) => {
+    const roomId = rooms[socket.id];
+    socket.to(roomId).emit('signal', payload);
   });
 
-  socket.on('file-chunk', ({ roomId, chunk, offset }) => {
-    // chunk is sent as ArrayBuffer - no changes needed
-    socket.to(roomId).emit('file-chunk', { chunk, offset });
-  });
-
-  socket.on('send-cancel', (roomId) => {
-    socket.to(roomId).emit('send-cancel');
-  });
-
-  socket.on('disconnecting', () => {
-    // Remove from all rooms
-    const userRooms = Array.from(socket.rooms).filter(r => r !== socket.id);
-    userRooms.forEach(roomId => {
-      if (rooms[roomId]) {
-        rooms[roomId].delete(socket.id);
-        if (rooms[roomId].size === 0) {
-          delete rooms[roomId];
-        } else {
-          io.to(roomId).emit('update-user-count', rooms[roomId].size);
-        }
-      }
-    });
+  socket.on('leave-room', () => {
+    const roomId = rooms[socket.id];
+    if (roomId) {
+      socket.leave(roomId);
+      delete rooms[socket.id];
+      socket.to(roomId).emit('peer-left');
+    }
   });
 
   socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
+    const roomId = rooms[socket.id];
+    if (roomId) {
+      socket.to(roomId).emit('peer-left');
+      delete rooms[socket.id];
+    }
+    console.log('Socket disconnected:', socket.id);
   });
 });
 
-server.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
-});
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
