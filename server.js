@@ -1,39 +1,75 @@
-// signaling-server.js
-const WebSocket = require('ws');
-const wss = new WebSocket.Server({ port: 8080 });
+// server.js
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
+const path = require("path");
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
 
 const rooms = {};
 
-wss.on('connection', (ws) => {
-  ws.on('message', (message) => {
-    const data = JSON.parse(message);
-    switch (data.type) {
-      case 'join':
-        if (!rooms[data.room]) {
-          rooms[data.room] = [];
-        }
-        rooms[data.room].push(ws);
-        ws.room = data.room;
-        ws.send(JSON.stringify({ type: 'joined', initiator: rooms[data.room].length === 1 }));
-        break;
-      case 'offer':
-      case 'answer':
-      case 'candidate':
-        rooms[ws.room].forEach((client) => {
-          if (client !== ws) {
-            client.send(JSON.stringify(data));
-          }
-        });
-        break;
+io.on("connection", (socket) => {
+  console.log("🔌 New client connected:", socket.id);
+
+  socket.on("create-room", (roomId) => {
+    console.log(`📦 Host created room: ${roomId}`);
+    rooms[roomId] = [socket.id];
+    socket.join(roomId);
+  });
+
+  socket.on("join-room", (roomId) => {
+    const room = rooms[roomId];
+    if (room && room.length === 1) {
+      console.log(`👥 Client joined room: ${roomId}`);
+      rooms[roomId].push(socket.id);
+      socket.join(roomId);
+
+      // Notify both sides
+      socket.emit("room-joined");
+      socket.to(roomId).emit("room-joined");
+    } else {
+      console.log(`❌ Join failed for room: ${roomId}`);
     }
   });
 
-  ws.on('close', () => {
-    if (ws.room) {
-      rooms[ws.room] = rooms[ws.room].filter((client) => client !== ws);
-      if (rooms[ws.room].length === 0) {
-        delete rooms[ws.room];
+  socket.on("leave-room", (roomId) => {
+    socket.leave(roomId);
+    if (rooms[roomId]) {
+      rooms[roomId] = rooms[roomId].filter((id) => id !== socket.id);
+      if (rooms[roomId].length === 0) {
+        delete rooms[roomId];
+      }
+    }
+    console.log(`🚪 Client left room: ${roomId}`);
+  });
+
+  socket.on("offer", (roomId, offer) => {
+    socket.to(roomId).emit("offer", offer);
+  });
+
+  socket.on("answer", (roomId, answer) => {
+    socket.to(roomId).emit("answer", answer);
+  });
+
+  socket.on("ice-candidate", (roomId, candidate) => {
+    socket.to(roomId).emit("ice-candidate", candidate);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("🔌 Client disconnected:", socket.id);
+    for (const roomId in rooms) {
+      rooms[roomId] = rooms[roomId].filter((id) => id !== socket.id);
+      if (rooms[roomId].length === 0) {
+        delete rooms[roomId];
       }
     }
   });
+});
+
+app.use(express.static(path.join(__dirname, "public")));
+
+server.listen(3000, () => {
+  console.log("🚀 Server running on http://localhost:3000");
 });
