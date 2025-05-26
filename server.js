@@ -9,7 +9,7 @@ const io = new Server(server);
 
 const rooms = {};
 
-app.use(express.static(path.join(__dirname, '/')));
+app.use(express.static(path.join(__dirname, 'public')));
 
 io.on('connection', socket => {
   socket.on('join-room', roomId => {
