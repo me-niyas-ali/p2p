@@ -239,9 +239,7 @@
         if (sendOffset < sendFile.size) sendChunk();
         else {
           ui.status.textContent = 'Upload complete';
-          ui.style.color = "green";
           ui.cancelBtn.remove();
-          ui.progressContainer.style.display = 'none';
         }
       };
 
