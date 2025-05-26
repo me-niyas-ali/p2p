@@ -251,7 +251,9 @@
 
    ui.cancelBtn.onclick = () => {
     sendingCancelled = true;
-    socket.emit("send-cancel-transfer", { roomId, fileName: sendFile.name });
+    socket.emit("send-cancel-transfer", {
+     roomId, fileName: sendFile.name
+    });
     sendFileReader = null;
     sendOffset = sendFile.size;
     sendFilesDisplay.removeChild(ui.card);
@@ -345,18 +347,19 @@
      cards.forEach(card => {
       const title = card.querySelector('h4');
       if (title && title.textContent === fileName) {
-       ui.status.textContent = 'Cancelled by sender';
-       ui.status.style.color = '#ef4444';
-       ui.progressBar.style.backgroundColor = '#ef4444';
-       ui.cancelBtn.remove();
+       const status = card.querySelector('.status-line');
+       const progressBar = card.querySelector('.progress-bar');
+       const cancelBtn = card.querySelector('.cancel-btn');
+
+       status.textContent = 'Cancelled by sender';
+       status.style.color = '#ef4444';
+       progressBar.style.backgroundColor = '#ef4444';
+       if (cancelBtn) cancelBtn.remove();
       }
      });
     });
-
   });
 
-
  </script>
-
 </body>
 </html>
