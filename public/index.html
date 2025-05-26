@@ -251,7 +251,7 @@
 
    ui.cancelBtn.onclick = () => {
     sendingCancelled = true;
-    socket.emit("send-cancel-transfer", roomId);
+    socket.emit("send-cancel-transfer", { roomId, fileName: sendFile.name });
     sendFileReader = null;
     sendOffset = sendFile.size;
     sendFilesDisplay.removeChild(ui.card);
