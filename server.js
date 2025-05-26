@@ -37,7 +37,7 @@ io.on('connection', socket => {
   });
 
   socket.on('send-cancel-transfer', roomId => {
-    socket.to(roomId).emit('cancel-transfer');
+    socket.to(roomId).emit('send-cancel-transfer');
   });
 
   socket.on('disconnect', () => {
