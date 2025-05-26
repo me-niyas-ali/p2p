@@ -284,7 +284,8 @@
     transferId: currentTransferId
    });
    sendOffset += CHUNK_SIZE;
-   ui.status.textContent = `${Math.min(sendOffset, sendFile.size)} / ${sendFile.size} bytes`;
+   ui.status.textContent = `${formatBytes(Math.min(sendOffset, sendFile.size))} / ${formatBytes(sendFile.size)}`;
+
    ui.progressBar.style.width = `${(sendOffset / sendFile.size) * 100}%`;
 
    if (sendOffset < sendFile.size) sendChunk();
@@ -335,7 +336,7 @@
    buffer.push(chunk);
    receivedSize += chunk.byteLength;
 
-   ui.status.textContent = `${receivedSize} / ${metadata.size} bytes`;
+   ui.status.textContent = `${formatBytes(receivedSize)} / ${formatBytes(metadata.size)}`;
    ui.progressBar.style.width = `${(receivedSize / metadata.size) * 100}%`;
 
    if (receivedSize >= metadata.size) {
