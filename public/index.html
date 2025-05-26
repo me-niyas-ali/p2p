@@ -242,6 +242,8 @@
    alert("Select a file and join a room first");
    return;
   }
+  
+  sendBtn.disabled = true;
 
   sendFile = fileInput.files[0];
   sendOffset = 0;
@@ -267,6 +269,7 @@
    sendFileReader = null;
    sendOffset = sendFile.size;
    sendFilesDisplay.removeChild(ui.card);
+   sendBtn.disabled = false;
   };
 
   socket.emit("send-file-meta", { roomId, metadata });
@@ -288,6 +291,7 @@
    else {
     ui.status.textContent = 'Upload complete';
     ui.status.style.color = '#22c55e';
+    sendBtn.disabled = false;
     ui.cancelBtn.remove();
    }
   };
