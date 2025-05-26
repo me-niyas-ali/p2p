@@ -345,18 +345,14 @@
      cards.forEach(card => {
       const title = card.querySelector('h4');
       if (title && title.textContent === fileName) {
-       ui.status.textContent = 'Cancelled by sender';
-       ui.status.style.color = '#ef4444';
+       status.textContent = 'Cancelled by sender';
+       status.style.color = '#ef4444';
        ui.progressBar.style.backgroundColor = '#ef4444';
        ui.cancelBtn.remove();
       }
      });
     });
-
   });
-
-
  </script>
-
 </body>
 </html>
