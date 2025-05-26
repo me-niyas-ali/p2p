@@ -240,7 +240,6 @@
         else {
           ui.status.textContent = 'Upload complete';
           ui.cancelBtn.remove();
-          ui.progressContainer.remove();
         }
       };
 
@@ -286,7 +285,6 @@
         if (receivedSize >= metadata.size) {
           ui.status.textContent = 'Download complete';
           ui.cancelBtn.remove();
-          ui.progressContainer.remove();
           ui.downloadBtn.style.display = 'block';
         }
       });
