@@ -116,7 +116,7 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script>
+<script>
   const socket = io();
   const roomIdInput = document.getElementById("roomIdinput");
   const roomDisplay = document.getElementById("roomId");
@@ -260,21 +260,13 @@
     const ui = createFileCard(receivedFilesDisplay, metadata, false);
     let buffer = [];
     let receivedSize = 0;
-    let cancelled = false;
-
-    activeReceiver = {
-      cancel: () => {
-        cancelled = true;
-        buffer = [];
-        receivedFilesDisplay.removeChild(ui.card);
-      }
-    };
+    activeReceiver = { buffer, ui, metadata };
 
     ui.cancelBtn.onclick = () => {
-      cancelled = true;
       buffer = [];
       socket.emit("send-cancel-transfer", roomId);
       receivedFilesDisplay.removeChild(ui.card);
+      activeReceiver = null;
     };
 
     ui.downloadBtn.onclick = () => {
@@ -287,26 +279,30 @@
       a.click();
       URL.revokeObjectURL(url);
     };
+  });
 
-    socket.on("file-chunk", (chunk) => {
-      if (cancelled || !metadata) return;
-      buffer.push(chunk);
-      receivedSize += chunk.byteLength;
+  socket.on("file-chunk", (chunk) => {
+    if (!activeReceiver) return;
 
-      ui.status.textContent = `${receivedSize} / ${metadata.size} bytes`;
-      ui.progressBar.style.width = `${(receivedSize / metadata.size) * 100}%`;
+    const { buffer, ui, metadata } = activeReceiver;
+    buffer.push(chunk);
+    let receivedSize = buffer.reduce((sum, b) => sum + b.byteLength, 0);
 
-      if (receivedSize >= metadata.size) {
-        ui.status.textContent = 'Download complete';
-        ui.cancelBtn.remove();
-        ui.downloadBtn.style.display = 'block';
-      }
-    });
+    ui.status.textContent = `${receivedSize} / ${metadata.size} bytes`;
+    ui.progressBar.style.width = `${(receivedSize / metadata.size) * 100}%`;
+
+    if (receivedSize >= metadata.size) {
+      ui.status.textContent = 'Download complete';
+      ui.cancelBtn.remove();
+      ui.downloadBtn.style.display = 'block';
+      activeReceiver = null;
+    }
   });
 
   socket.on("send-cancel-transfer", () => {
-    if (activeReceiver && typeof activeReceiver.cancel === 'function') {
-      activeReceiver.cancel();
+    if (activeReceiver) {
+      receivedFilesDisplay.removeChild(activeReceiver.ui.card);
+      activeReceiver = null;
     }
   });
 </script>
