@@ -329,6 +329,7 @@
 
     if (receivedSize >= metadata.size) {
      ui.status.textContent = 'Download complete';
+     ui.progressBar.parentElement.style.display = 'none';
      ui.cancelBtn.remove();
      ui.downloadBtn.style.display = 'block';
     }
