@@ -343,7 +343,7 @@
      cards.forEach(card => {
       const title = card.querySelector('h4');
       if (title && title.textContent === fileName) {
-       card.remove();
+       ui.status.textContent = 'Cancelled by sender';
       }
      });
     });
