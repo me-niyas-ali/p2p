@@ -281,6 +281,7 @@
     if (sendOffset < sendFile.size) sendChunk();
     else {
      ui.status.textContent = 'Upload complete';
+     ui.status.style.color = '#22c55e';
      ui.cancelBtn.remove();
     }
    };
@@ -329,6 +330,7 @@
 
     if (receivedSize >= metadata.size) {
      ui.status.textContent = 'Download complete';
+     ui.status.style.color = '#22c55e';
      ui.progressBar.parentElement.style.display = 'none';
      ui.cancelBtn.remove();
      ui.downloadBtn.style.display = 'block';
@@ -344,6 +346,8 @@
       const title = card.querySelector('h4');
       if (title && title.textContent === fileName) {
        ui.status.textContent = 'Cancelled by sender';
+       ui.status.style.color = '#ef4444';
+       ui.progressBar.parentElement.style.display = 'none';
       }
      });
     });
