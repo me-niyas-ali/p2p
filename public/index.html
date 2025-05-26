@@ -202,7 +202,7 @@
 
   const status = document.createElement('div');
   status.className = 'status-line';
-  status.textContent = `0 / ${metadata.size} bytes`;
+  status.textContent = `0 / ${formatBytes(metadata.size)}`;
   card.appendChild(status);
 
   const progressContainer = document.createElement('div');
