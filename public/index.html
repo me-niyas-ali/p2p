@@ -134,6 +134,7 @@
   let sendOffset = 0;
   let sendFile = null;
   let sendFileReader = null;
+  let sendingCancelled = false;
 
   joinBtn.onclick = () => {
     if (!joined) {
@@ -142,14 +143,27 @@
       socket.emit("join-room", roomId);
     } else {
       socket.emit("leave-room", roomId);
-      joined = false;
-      joinBtn.textContent = "Join Room";
-      joinBtn.classList.remove("bg-error");
-      roomDisplay.textContent = "----";
-      deviceDisplay.textContent = "0";
-      location.reload();
+      resetState();
     }
   };
+
+  socket.on("disconnect", () => {
+    resetState();
+  });
+
+  function resetState() {
+    joined = false;
+    roomId = '';
+    sendingCancelled = true;
+    sendFileReader = null;
+    sendOffset = 0;
+    sendFile = null;
+    joinBtn.textContent = "Join Room";
+    joinBtn.classList.remove("bg-error");
+    roomDisplay.textContent = "----";
+    deviceDisplay.textContent = "0";
+    location.reload();
+  }
 
   socket.on("room-joined", (data) => {
     joined = true;
@@ -200,7 +214,6 @@
     }
 
     displayArea.appendChild(card);
-
     return { card, status, progressBar, cancelBtn, downloadBtn };
   }
 
@@ -212,10 +225,12 @@
 
     sendFile = fileInput.files[0];
     sendOffset = 0;
+    sendingCancelled = false;
 
     const ui = createFileCard(sendFilesDisplay, sendFile, true);
 
     ui.cancelBtn.onclick = () => {
+      sendingCancelled = true;
       socket.emit("send-cancel-transfer", roomId);
       sendFileReader = null;
       sendOffset = sendFile.size;
@@ -232,7 +247,8 @@
 
     sendFileReader = new FileReader();
     sendFileReader.onload = (e) => {
-      if (!sendFileReader) return;
+      if (sendingCancelled || !sendFileReader) return;
+
       socket.emit("send-file-chunk", { roomId, chunk: e.target.result });
       sendOffset += CHUNK_SIZE;
       ui.status.textContent = `${Math.min(sendOffset, sendFile.size)} / ${sendFile.size} bytes`;
@@ -246,7 +262,7 @@
     };
 
     function sendChunk() {
-      if (!sendFile || !sendFileReader || sendOffset >= sendFile.size) return;
+      if (sendingCancelled || !sendFile || !sendFileReader || sendOffset >= sendFile.size) return;
       const slice = sendFile.slice(sendOffset, sendOffset + CHUNK_SIZE);
       sendFileReader.readAsArrayBuffer(slice);
     }
@@ -254,19 +270,17 @@
     sendChunk();
   };
 
-  let activeReceiver = null;
-
   socket.on("file-meta", (metadata) => {
     const ui = createFileCard(receivedFilesDisplay, metadata, false);
     let buffer = [];
     let receivedSize = 0;
-    activeReceiver = { buffer, ui, metadata };
+    let receivingCancelled = false;
 
     ui.cancelBtn.onclick = () => {
+      receivingCancelled = true;
       buffer = [];
       socket.emit("send-cancel-transfer", roomId);
       receivedFilesDisplay.removeChild(ui.card);
-      activeReceiver = null;
     };
 
     ui.downloadBtn.onclick = () => {
@@ -279,32 +293,31 @@
       a.click();
       URL.revokeObjectURL(url);
     };
-  });
 
-  socket.on("file-chunk", (chunk) => {
-    if (!activeReceiver) return;
+    socket.on("file-chunk", (chunk) => {
+      if (receivingCancelled || !metadata) return;
+      buffer.push(chunk);
+      receivedSize += chunk.byteLength;
 
-    const { buffer, ui, metadata } = activeReceiver;
-    buffer.push(chunk);
-    let receivedSize = buffer.reduce((sum, b) => sum + b.byteLength, 0);
+      ui.status.textContent = `${receivedSize} / ${metadata.size} bytes`;
+      ui.progressBar.style.width = `${(receivedSize / metadata.size) * 100}%`;
 
-    ui.status.textContent = `${receivedSize} / ${metadata.size} bytes`;
-    ui.progressBar.style.width = `${(receivedSize / metadata.size) * 100}%`;
+      if (receivedSize >= metadata.size) {
+        ui.status.textContent = 'Download complete';
+        ui.cancelBtn.remove();
+        ui.downloadBtn.style.display = 'block';
+      }
+    });
 
-    if (receivedSize >= metadata.size) {
-      ui.status.textContent = 'Download complete';
+    socket.on("send-cancel-transfer", () => {
+      receivingCancelled = true;
+      buffer = [];
+      ui.status.textContent = 'Transfer canceled';
       ui.cancelBtn.remove();
-      ui.downloadBtn.style.display = 'block';
-      activeReceiver = null;
-    }
-  });
-
-  socket.on("send-cancel-transfer", () => {
-    if (activeReceiver) {
-      receivedFilesDisplay.removeChild(activeReceiver.ui.card);
-      activeReceiver = null;
-    }
+      if (ui.downloadBtn) ui.downloadBtn.remove();
+    });
   });
 </script>
+
 </body>
 </html>
