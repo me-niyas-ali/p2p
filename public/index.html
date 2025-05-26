@@ -1,416 +1,297 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>LAN File Sharing</title>
-<style>
-  * {
-    box-sizing: border-box;
-  }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>P2P File Sharing</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f4f4f4;
+    }
 
-  body {
-    font-family: sans-serif;
-    margin: 0;
-    padding: 20px;
-    background-color: #f4f4f4;
-  }
+    .container {
+      max-width: 600px;
+      margin: auto;
+      padding: 20px;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
 
-  h2, h3 {
-    text-align: center;
-  }
+    input, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      font-size: 16px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
 
-  .container {
-    max-width: 500px;
-    margin: auto;
-    padding: 15px;
-    background: white;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-  }
+    button {
+      background-color: #2196f3;
+      color: #fff;
+      cursor: pointer;
+    }
 
-  input[type="text"],
-  input[type="file"] {
-    width: 100%;
-    padding: 10px;
-    margin: 10px 0;
-    font-size: 16px;
-    border-radius: 5px;
-    border: 1px solid #ccc;
-  }
+    button.bg-error {
+      background-color: #f44336;
+    }
 
-  button {
-    width: 100%;
-    padding: 10px;
-    margin: 10px 0;
-    font-size: 16px;
-    border-radius: 5px;
-    color: white;
-    border: none;
-    cursor: pointer;
-  }
+    .file-display-area {
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
 
-  .card {
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    padding: 15px;
-    margin: 10px 0;
-    background: #fff;
-  }
+    .file-card {
+      border: 1px solid #ccc;
+      padding: 12px;
+      border-radius: 8px;
+      background: #fafafa;
+      position: relative;
+    }
 
-  .progress {
-    width: 100%;
-    height: 15px;
-    background: #eee;
-    border-radius: 5px;
-    overflow: hidden;
-    margin-top: 10px;
-  }
+    .file-card h4 {
+      margin: 0 0 6px;
+    }
 
-  .bar {
-    height: 100%;
-    width: 0;
-    background: #4caf50;
-    transition: width 0.3s;
-  }
+    .progress-container {
+      width: 100%;
+      background: #eee;
+      height: 10px;
+      border-radius: 5px;
+      overflow: hidden;
+      margin: 8px 0;
+    }
 
-  #sendBtn {
-    background-color: #4caf50;
-  }
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: #4caf50;
+      transition: width 0.2s;
+    }
 
-  #cancelSendBtn {
-    background-color: #f44336;
-    display: none;
-  }
+    .status-line {
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
 
-  #cancelReceiveBtn {
-    background-color: #f44336;
-    display: none;
-  }
+    .cancel-btn {
+      background: #f44336;
+      color: white;
+      border: none;
+      padding: 5px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+      position: absolute;
+      top: 10px;
+      right: 10px;
+    }
 
-  #downloadBtn {
-    background-color: #2196f3;
-    display: none;
-  }
-
-  .bg-success {
-    background-color: #4caf50;
-  }
-
-  .bg-error {
-    background-color: #f44336;
-  }
-
-  .bg-info {
-    background-color: #2196f3;
-  }
-
-  .success, .error {
-    display: none;
-    margin-top: 10px;
-  }
-
-  .success {
-    color: #4caf50;
-  }
-
-  .error {
-    color: #f44336;
-  }
-</style>
+    .download-btn {
+      background-color: #4caf50;
+      color: white;
+      padding: 6px;
+      border: none;
+      border-radius: 4px;
+      margin-top: 10px;
+      display: none;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
   <div class="container">
     <h2>P2P File Sharing</h2>
     <div>Room ID: <span id="roomId">----</span></div>
     <div>Connected Devices: <span id="connectedDevice">0</span></div>
-    <input type="text" id="roomIdinput" placeholder="Enter Room Code (4-digit) to Host / Join" maxlength="4" />
-    <button id="joinBtn" class="bg-info">Join Room</button>
+    <input type="text" id="roomIdinput" placeholder="Enter Room Code (4-digit)" maxlength="4" />
+    <button id="joinBtn">Join Room</button>
     <input type="file" id="fileInput" />
     <button id="sendBtn">Send</button>
-    <button id="cancelSendBtn">Cancel Sending</button>
 
-    <div id="sendFilesDisplay">
-      <h3>Send Files</h3>
-      <div class="card">
-        <p><strong id="sendFileName">-</strong></p>
-        <p id="sendFileSize">0 / 0</p>
-        <div class="progress"><div class="bar" id="sendProgressbar"></div></div>
-        <p class="success" id="sendSuccessMsg">File Sent</p>
-        <p class="error" id="sendErrorMsg">Transfer Error</p>
-        <p class="error" id="sendCancelMsg">Transfer Cancelled</p>
-      </div>
-    </div>
-
-    <div id="receivedFilesDisplay">
-      <h3>Received Files</h3>
-      <div class="card">
-        <p><strong id="receiveFileName">-</strong></p>
-        <p id="receiveFileSize">0 / 0</p>
-        <div class="progress"><div class="bar" id="receiveProgressbar"></div></div>
-        <button id="cancelReceiveBtn">Cancel Receiving</button>
-        <p class="success" id="receiveSuccessMsg">File Received</p>
-        <p class="error" id="receiveErrorMsg">Transfer Error</p>
-        <p class="error" id="receiveCancelMsg">Transfer Cancelled</p>
-        <button id="downloadBtn">Download</button>
-      </div>
-    </div>
+    <div id="sendFilesDisplay" class="file-display-area"></div>
+    <div id="receivedFilesDisplay" class="file-display-area"></div>
   </div>
 
-<script src="/socket.io/socket.io.js"></script>
-<script>
-  const socket = io();
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    const roomIdInput = document.getElementById("roomIdinput");
+    const roomDisplay = document.getElementById("roomId");
+    const deviceDisplay = document.getElementById("connectedDevice");
+    const joinBtn = document.getElementById("joinBtn");
+    const sendBtn = document.getElementById("sendBtn");
+    const fileInput = document.getElementById("fileInput");
+    const sendFilesDisplay = document.getElementById("sendFilesDisplay");
+    const receivedFilesDisplay = document.getElementById("receivedFilesDisplay");
 
-  const roomIdInput = document.getElementById('roomIdinput');
-  const roomIdDisplay = document.getElementById('roomId');
-  const connectedDeviceDisplay = document.getElementById('connectedDevice');
-  const joinBtn = document.getElementById('joinBtn');
-  const fileInput = document.getElementById('fileInput');
-  const sendBtn = document.getElementById('sendBtn');
-  const cancelSendBtn = document.getElementById('cancelSendBtn');
-  const cancelReceiveBtn = document.getElementById('cancelReceiveBtn');
-  const downloadBtn = document.getElementById('downloadBtn');
+    let roomId = '';
+    let joined = false;
+    const CHUNK_SIZE = 64 * 1024;
 
-  // Send area elements
-  const sendFileName = document.getElementById('sendFileName');
-  const sendFileSize = document.getElementById('sendFileSize');
-  const sendProgressbar = document.getElementById('sendProgressbar');
-  const sendSuccessMsg = document.getElementById('sendSuccessMsg');
-  const sendErrorMsg = document.getElementById('sendErrorMsg');
-  const sendCancelMsg = document.getElementById('sendCancelMsg');
+    let sendOffset = 0;
+    let sendFile = null;
+    let sendFileReader = null;
 
-  // Receive area elements
-  const receiveFileName = document.getElementById('receiveFileName');
-  const receiveFileSize = document.getElementById('receiveFileSize');
-  const receiveProgressbar = document.getElementById('receiveProgressbar');
-  const receiveSuccessMsg = document.getElementById('receiveSuccessMsg');
-  const receiveErrorMsg = document.getElementById('receiveErrorMsg');
-  const receiveCancelMsg = document.getElementById('receiveCancelMsg');
+    joinBtn.onclick = () => {
+      if (!joined) {
+        roomId = roomIdInput.value.trim();
+        if (roomId.length !== 4) return alert("Enter a 4-digit room code");
+        socket.emit("join-room", roomId);
+      } else {
+        socket.emit("leave-room", roomId);
+        joined = false;
+        joinBtn.textContent = "Join Room";
+        joinBtn.classList.remove("bg-error");
+        roomDisplay.textContent = "----";
+        deviceDisplay.textContent = "0";
+      }
+    };
 
-  let joined = false;
-  let roomId = null;
-  let isHost = false;
+    socket.on("room-joined", (data) => {
+      joined = true;
+      roomId = data.roomId;
+      roomDisplay.textContent = data.roomId;
+      deviceDisplay.textContent = data.devices;
+      joinBtn.textContent = "Exit Room";
+      joinBtn.classList.add("bg-error");
+    });
 
-  let sendFile = null;
-  let sendFileReader = null;
-  let sendOffset = 0;
-  const CHUNK_SIZE = 64 * 1024; // 64KB
+    socket.on("room-updated", (data) => {
+      deviceDisplay.textContent = data.devices;
+    });
 
-  let receiveFileMetadata = null;
-  let receiveBuffer = [];
-  let receiveReceivedSize = 0;
+    function createFileCard(displayArea, metadata, isSender) {
+      const card = document.createElement('div');
+      card.className = 'file-card';
 
-  function resetSendUI() {
-    sendFileName.textContent = '-';
-    sendFileSize.textContent = '0 / 0';
-    sendProgressbar.style.width = '0%';
-    sendSuccessMsg.style.display = 'none';
-    sendErrorMsg.style.display = 'none';
-    sendCancelMsg.style.display = 'none';
-    cancelSendBtn.style.display = 'none';
-  }
+      const title = document.createElement('h4');
+      title.textContent = metadata.name;
+      card.appendChild(title);
 
-  function resetReceiveUI() {
-    receiveFileName.textContent = '-';
-    receiveFileSize.textContent = '0 / 0';
-    receiveProgressbar.style.width = '0%';
-    receiveSuccessMsg.style.display = 'none';
-    receiveErrorMsg.style.display = 'none';
-    receiveCancelMsg.style.display = 'none';
-    cancelReceiveBtn.style.display = 'none';
-    downloadBtn.style.display = 'none';
-  }
+      const status = document.createElement('div');
+      status.className = 'status-line';
+      status.textContent = `0 / ${metadata.size} bytes`;
+      card.appendChild(status);
 
-  function updateConnectedDevices(count) {
-    connectedDeviceDisplay.textContent = count;
-  }
+      const progressContainer = document.createElement('div');
+      progressContainer.className = 'progress-container';
 
-  function updateRoomId(id) {
-    roomIdDisplay.textContent = id || '----';
-  }
+      const progressBar = document.createElement('div');
+      progressBar.className = 'progress-bar';
+      progressContainer.appendChild(progressBar);
+      card.appendChild(progressContainer);
 
-  function sendChunk() {
-    if (!sendFile || !sendFileReader) return;
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'cancel-btn';
+      cancelBtn.textContent = 'Cancel';
+      card.appendChild(cancelBtn);
 
-    if (sendOffset >= sendFile.size) {
-      socket.emit('send-file-complete', roomId);
-      sendSuccessMsg.style.display = 'block';
-      cancelSendBtn.style.display = 'none';
-      return;
+      let downloadBtn = null;
+      if (!isSender) {
+        downloadBtn = document.createElement('button');
+        downloadBtn.className = 'download-btn';
+        downloadBtn.textContent = 'Download';
+        card.appendChild(downloadBtn);
+      }
+
+      displayArea.appendChild(card);
+
+      return { card, status, progressBar, cancelBtn, downloadBtn };
     }
 
-    const slice = sendFile.slice(sendOffset, sendOffset + CHUNK_SIZE);
-    sendFileReader.readAsArrayBuffer(slice);
-  }
-
-  joinBtn.addEventListener('click', () => {
-    if (joined) {
-      // Leave room
-      socket.emit('leave-room', roomId);
-      joined = false;
-      joinBtn.textContent = 'Join Room';
-      updateRoomId(null);
-      updateConnectedDevices(0);
-      isHost = false;
-      resetSendUI();
-      resetReceiveUI();
-      fileInput.disabled = true;
-      sendBtn.disabled = true;
-      cancelSendBtn.style.display = 'none';
-      cancelReceiveBtn.style.display = 'none';
-      downloadBtn.style.display = 'none';
-      roomId = null;
-    } else {
-      // Join room
-      const inputId = roomIdInput.value.trim();
-      if (!/^\d{4}$/.test(inputId)) {
-        alert('Please enter a valid 4-digit room code');
+    sendBtn.onclick = () => {
+      if (!fileInput.files.length || !joined) {
+        alert("Select a file and join a room first");
         return;
       }
-      roomId = inputId;
-      socket.emit('join-room', roomId);
-      joined = true;
-      joinBtn.textContent = 'Leave Room';
-      updateRoomId(roomId);
-      fileInput.disabled = false;
-      sendBtn.disabled = false;
-    }
-  });
 
-  socket.on('connected-count', (count) => {
-    updateConnectedDevices(count);
-  });
+      sendFile = fileInput.files[0];
+      sendOffset = 0;
 
-  socket.on('host-status', (status) => {
-    // status can be boolean or socket id string
-    isHost = (typeof status === 'boolean') ? status : (status === socket.id);
-    if (isHost) {
-      console.log('You are host.');
-    } else {
-      console.log('You are guest.');
-    }
-  });
+      const ui = createFileCard(sendFilesDisplay, sendFile, true);
 
-  sendBtn.addEventListener('click', () => {
-    if (!fileInput.files.length) {
-      alert('Please select a file first');
-      return;
-    }
-    if (!joined) {
-      alert('Please join a room first');
-      return;
-    }
+      ui.cancelBtn.onclick = () => {
+        socket.emit("send-cancel-transfer", roomId);
+        sendFileReader = null;
+        sendOffset = sendFile.size;
+        sendFilesDisplay.removeChild(ui.card);
+      };
 
-    sendFile = fileInput.files[0];
-    sendOffset = 0;
+      const metadata = {
+        name: sendFile.name,
+        size: sendFile.size,
+        type: sendFile.type
+      };
 
-    resetSendUI();
-    sendFileName.textContent = sendFile.name;
-    sendFileSize.textContent = `0 / ${sendFile.size} bytes`;
-    cancelSendBtn.style.display = 'inline-block';
+      socket.emit("send-file-meta", { roomId, metadata });
 
-    // Send file metadata first
-    const metadata = {
-      name: sendFile.name,
-      size: sendFile.size,
-      type: sendFile.type
-    };
-    socket.emit('send-file-meta', { roomId, metadata });
+      sendFileReader = new FileReader();
+      sendFileReader.onload = (e) => {
+        if (!sendFileReader) return;
+        socket.emit("send-file-chunk", { roomId, chunk: e.target.result });
+        sendOffset += CHUNK_SIZE;
+        ui.status.textContent = `${Math.min(sendOffset, sendFile.size)} / ${sendFile.size} bytes`;
+        ui.progressBar.style.width = `${(sendOffset / sendFile.size) * 100}%`;
 
-    sendFileReader = new FileReader();
-    sendFileReader.onload = (e) => {
-      // Send chunk as ArrayBuffer (converted to Buffer on server)
-      socket.emit('send-file-chunk', { roomId, chunk: e.target.result });
-      sendOffset += CHUNK_SIZE;
+        if (sendOffset < sendFile.size) sendChunk();
+        else {
+          ui.status.textContent = 'Upload complete';
+          ui.cancelBtn.remove();
+        }
+      };
 
-      sendFileSize.textContent = `${Math.min(sendOffset, sendFile.size)} / ${sendFile.size} bytes`;
-      const percent = Math.floor((sendOffset / sendFile.size) * 100);
-      sendProgressbar.style.width = percent + '%';
-
-      if (sendOffset < sendFile.size) {
-        sendChunk();
-      } else {
-        // Complete event will be emitted in sendChunk()
+      function sendChunk() {
+        if (!sendFile || !sendFileReader || sendOffset >= sendFile.size) return;
+        const slice = sendFile.slice(sendOffset, sendOffset + CHUNK_SIZE);
+        sendFileReader.readAsArrayBuffer(slice);
       }
+
+      sendChunk();
     };
 
-    sendChunk();
-  });
+    socket.on("file-meta", (metadata) => {
+      const ui = createFileCard(receivedFilesDisplay, metadata, false);
+      let buffer = [];
+      let receivedSize = 0;
 
-  cancelSendBtn.addEventListener('click', () => {
-    if (!joined) return;
-    socket.emit('send-cancel-transfer', roomId);
-    resetSendUI();
-  });
+      ui.cancelBtn.onclick = () => {
+        buffer = [];
+        socket.emit("send-cancel-transfer", roomId);
+        receivedFilesDisplay.removeChild(ui.card);
+      };
 
-  cancelReceiveBtn.addEventListener('click', () => {
-    receiveBuffer = [];
-    receiveFileMetadata = null;
-    receiveReceivedSize = 0;
-    socket.emit('send-cancel-transfer', roomId);
-    resetReceiveUI();
-  });
+      ui.downloadBtn.onclick = () => {
+        const blob = new Blob(buffer, { type: metadata.type || 'application/octet-stream' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = metadata.name;
+        document.body.appendChild(a);
+        a.click();
+        URL.revokeObjectURL(url);
+      };
 
-  // Receiving metadata
-  socket.on('file-meta', (metadata) => {
-    resetReceiveUI();
-    receiveFileMetadata = metadata;
-    receiveReceivedSize = 0;
-    receiveBuffer = [];
+      socket.on("file-chunk", (chunk) => {
+        if (!metadata) return;
+        buffer.push(chunk);
+        receivedSize += chunk.byteLength;
 
-    receiveFileName.textContent = metadata.name;
-    receiveFileSize.textContent = `0 / ${metadata.size} bytes`;
-    cancelReceiveBtn.style.display = 'inline-block';
-  });
+        ui.status.textContent = `${receivedSize} / ${metadata.size} bytes`;
+        ui.progressBar.style.width = `${(receivedSize / metadata.size) * 100}%`;
 
-  // Receiving chunk
-  socket.on('file-chunk', (chunk) => {
-    if (!receiveFileMetadata) return;
-
-    receiveBuffer.push(chunk);
-    receiveReceivedSize += chunk.byteLength || chunk.length || 0;
-
-    receiveFileSize.textContent = `${receiveReceivedSize} / ${receiveFileMetadata.size} bytes`;
-    const percent = Math.floor((receiveReceivedSize / receiveFileMetadata.size) * 100);
-    receiveProgressbar.style.width = percent + '%';
-
-    if (receiveReceivedSize >= receiveFileMetadata.size) {
-      socket.emit('send-file-complete', roomId); // confirm complete to sender if needed
-
-      receiveSuccessMsg.style.display = 'block';
-      cancelReceiveBtn.style.display = 'none';
-      downloadBtn.style.display = 'inline-block';
-    }
-  });
-
-  socket.on('file-complete', () => {
-    // File transfer complete
-  });
-
-  socket.on('cancel-transfer', () => {
-    resetSendUI();
-    resetReceiveUI();
-  });
-
-  downloadBtn.addEventListener('click', () => {
-    if (!receiveBuffer.length || !receiveFileMetadata) return;
-
-    const blob = new Blob(receiveBuffer, { type: receiveFileMetadata.type || 'application/octet-stream' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = receiveFileMetadata.name;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-      URL.revokeObjectURL(url);
-      a.remove();
-    }, 100);
-  });
-
-  // Disable inputs initially
-  fileInput.disabled = true;
-  sendBtn.disabled = true;
-</script>
+        if (receivedSize >= metadata.size) {
+          ui.status.textContent = 'Download complete';
+          ui.cancelBtn.remove();
+          ui.downloadBtn.style.display = 'block';
+        }
+      });
+    });
+  </script>
 </body>
 </html>
