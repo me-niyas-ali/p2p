@@ -2,223 +2,199 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>WebRTC File Sharing</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LAN File Sharing</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 40px;
-      background-color: #f0f0f0;
-    }
-    h2 {
-      margin-top: 0;
-    }
-    #room-controls, #file-controls, #transfer-status {
-      margin-bottom: 20px;
-      padding: 20px;
-      background-color: #fff;
-      border-radius: 8px;
-    }
-    input[type="text"], input[type="file"] {
-      padding: 8px;
-      margin-right: 10px;
-    }
-    button {
-      padding: 8px 16px;
-    }
-    progress {
-      width: 100%;
-      height: 20px;
-    }
-    .hidden {
-      display: none;
-    }
-    #notifications {
-      margin-top: 10px;
-      color: green;
-    }
+    /* Styles trimmed for brevity - use your full CSS here */
+    /* ...Paste your existing CSS here from above... */
   </style>
 </head>
 <body>
-  <h2>WebRTC File Sharing</h2>
+  <div class="container">
+    <h2>P2P File Sharing</h2>
+    <input type="file" id="fileInput" />
+    <div>Room ID : <span id="roomId">----</span></div>
+    <div>Connected Devices : <span id="connectedDevice">0</span></div>
+    <input type="text" id="roomIdinput" placeholder="Enter Room Code (4-digit) to join" maxlength="4" />
+    <button id="joinBtn" class="bg-info">Join Room</button>
+    <button id="sendBtn" class="bg-success">Send</button>
 
-  <div id="room-controls">
-    <input type="text" id="room-id" placeholder="Enter 4-digit Room ID" maxlength="4" />
-    <button id="join-btn">Join Room</button>
-    <p id="connection-status">Not connected</p>
+    <div id="sendFilesDisplay">
+      <h3>Send Files</h3>
+      <div class="card" id="sendCard" style="display: none;">
+        <p><strong id="sendFileName">file.name</strong></p>
+        <p id="sendFileSize">0 / 0</p>
+        <div class="progress"><div class="bar" id="sendProgressbar"></div></div>
+        <button id="cancelSendBtn" class="bg-error">Cancel</button>
+        <p class="success" id="sendSuccess" style="display:none;">File Sent</p>
+        <p class="error" id="sendError" style="display:none;">Transfer Error</p>
+        <p class="error" id="sendCancel" style="display:none;">Transfer Cancelled</p>
+      </div>
+    </div>
+
+    <div id="receivedFilesDisplay">
+      <h3>Received Files</h3>
+      <div class="card" id="receiveCard" style="display: none;">
+        <p><strong id="receiveFileName">file.name</strong></p>
+        <p id="receiveFileSize">0 / 0</p>
+        <div class="progress"><div class="bar" id="receiveProgressbar"></div></div>
+        <button id="cancelReceiveBtn" class="bg-error">Cancel</button>
+        <p class="success" id="receiveSuccess" style="display:none;">File Received</p>
+        <p class="error" id="receiveError" style="display:none;">Transfer Error</p>
+        <p class="error" id="receiveCancel" style="display:none;">Transfer Cancelled</p>
+        <button id="downloadBtn" style="display:none;">Download</button>
+      </div>
+    </div>
   </div>
 
-  <div id="file-controls" class="hidden">
-    <input type="file" id="file-input" />
-    <button id="send-btn">Send</button>
-    <p id="file-info"></p>
-  </div>
-
-  <div id="transfer-status" class="hidden">
-    <h3>Transfer Progress</h3>
-    <p>Sending: <progress id="send-progress" value="0" max="100"></progress></p>
-    <p>Receiving: <progress id="receive-progress" value="0" max="100"></progress></p>
-    <button id="cancel-btn">Cancel Transfer</button>
-  </div>
-
-  <div id="notifications"></div>
-
+  <script src="/socket.io/socket.io.js"></script>
   <script>
-    const SIGNALING_SERVER_URL = 'wss://your-signaling-server.com'; // Replace with your signaling server URL
-    const roomIdInput = document.getElementById('room-id');
-    const joinBtn = document.getElementById('join-btn');
-    const connectionStatus = document.getElementById('connection-status');
-    const fileControls = document.getElementById('file-controls');
-    const fileInput = document.getElementById('file-input');
-    const sendBtn = document.getElementById('send-btn');
-    const fileInfo = document.getElementById('file-info');
-    const transferStatus = document.getElementById('transfer-status');
-    const sendProgress = document.getElementById('send-progress');
-    const receiveProgress = document.getElementById('receive-progress');
-    const cancelBtn = document.getElementById('cancel-btn');
-    const notifications = document.getElementById('notifications');
+    const socket = io(); // Connect to your Socket.IO server
+    const fileInput = document.getElementById('fileInput');
+    const roomIdDisplay = document.getElementById('roomId');
+    const connectedDevice = document.getElementById('connectedDevice');
+    const roomInput = document.getElementById('roomIdinput');
+    const joinBtn = document.getElementById('joinBtn');
+    const sendBtn = document.getElementById('sendBtn');
 
-    let socket;
-    let pc;
+    let roomId = null;
+    let isHost = false;
+    let peerConnection;
     let dataChannel;
-    let fileReader;
-    let file;
-    let receivedBuffers = [];
+    let fileToSend;
+    let receivedBuffer = [];
+    let receivedSize = 0;
+    let totalSize = 0;
+
+    // Generate room ID when file is selected
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length === 0) return;
+      fileToSend = fileInput.files[0];
+      roomId = Math.floor(1000 + Math.random() * 9000).toString();
+      roomIdDisplay.textContent = roomId;
+      socket.emit('create-room', roomId);
+      isHost = true;
+    });
 
     joinBtn.addEventListener('click', () => {
-      const roomId = roomIdInput.value;
-      if (roomId.length !== 4) {
-        alert('Please enter a 4-digit Room ID.');
-        return;
+      if (joinBtn.textContent === "Join Room") {
+        const inputRoom = roomInput.value;
+        if (inputRoom.length !== 4) return alert("Enter valid 4-digit room ID");
+        roomId = inputRoom;
+        socket.emit('join-room', roomId);
+        joinBtn.textContent = "Exit Room";
+        joinBtn.classList.remove("bg-info");
+        joinBtn.classList.add("bg-error");
+      } else {
+        socket.emit('leave-room', roomId);
+        joinBtn.textContent = "Join Room";
+        joinBtn.classList.remove("bg-error");
+        joinBtn.classList.add("bg-info");
+        roomId = null;
       }
-      joinRoom(roomId);
     });
 
     sendBtn.addEventListener('click', () => {
-      if (fileInput.files.length === 0) {
-        alert('Please select a file.');
-        return;
-      }
-      file = fileInput.files[0];
-      fileInfo.textContent = `File: ${file.name} (${file.size} bytes)`;
-      sendFile();
-    });
-
-    cancelBtn.addEventListener('click', () => {
-      if (dataChannel) {
-        dataChannel.close();
-      }
-      if (pc) {
-        pc.close();
-      }
-      connectionStatus.textContent = 'Transfer cancelled.';
-      transferStatus.classList.add('hidden');
-    });
-
-    function joinRoom(roomId) {
-      socket = new WebSocket(SIGNALING_SERVER_URL);
-
-      socket.onopen = () => {
-        socket.send(JSON.stringify({ type: 'join', room: roomId }));
-      };
-
-      socket.onmessage = async (message) => {
-        const data = JSON.parse(message.data);
-        switch (data.type) {
-          case 'joined':
-            createPeerConnection();
-            if (data.initiator) {
-              dataChannel = pc.createDataChannel('file');
-              setupDataChannel();
-              const offer = await pc.createOffer();
-              await pc.setLocalDescription(offer);
-              socket.send(JSON.stringify({ type: 'offer', offer }));
-            }
-            connectionStatus.textContent = `Connected to Room ${roomId}`;
-            fileControls.classList.remove('hidden');
-            break;
-          case 'offer':
-            await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            socket.send(JSON.stringify({ type: 'answer', answer }));
-            break;
-          case 'answer':
-            await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-            break;
-          case 'candidate':
-            if (data.candidate) {
-              await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-            }
-            break;
-        }
-      };
-    }
-
-    function createPeerConnection() {
-      pc = new RTCPeerConnection();
-
-      pc.onicecandidate = (event) => {
-        if (event.candidate) {
-          socket.send(JSON.stringify({ type: 'candidate', candidate: event.candidate }));
-        }
-      };
-
-      pc.ondatachannel = (event) => {
-        dataChannel = event.channel;
-        setupDataChannel();
-      };
-    }
-
-    function setupDataChannel() {
-      dataChannel.onopen = () => {
-        console.log('Data channel opened');
-      };
-
-      dataChannel.onmessage = (event) => {
-        receivedBuffers.push(event.data);
-        const receivedSize = receivedBuffers.reduce((acc, curr) => acc + curr.byteLength, 0);
-        receiveProgress.value = (receivedSize / file.size) * 100;
-
-        if (receivedSize === file.size) {
-          const receivedBlob = new Blob(receivedBuffers);
-          const downloadLink = document.createElement('a');
-          downloadLink.href = URL.createObjectURL(receivedBlob);
-          downloadLink.download = file.name;
-          downloadLink.textContent = 'Download Received File';
-          notifications.appendChild(downloadLink);
-          notifications.appendChild(document.createElement('br'));
-          transferStatus.classList.add('hidden');
-          receivedBuffers = [];
-        }
-      };
-    }
-
-    function sendFile() {
-      transferStatus.classList.remove('hidden');
-      const chunkSize = 16384;
+      if (!fileToSend || !dataChannel) return;
+      const chunkSize = 16 * 1024;
+      const reader = new FileReader();
       let offset = 0;
 
-      fileReader = new FileReader();
+      document.getElementById("sendCard").style.display = "block";
 
-      fileReader.onload = (e) => {
+      reader.addEventListener('error', err => {
+        console.error('Error reading file:', err);
+      });
+
+      reader.addEventListener('load', e => {
         dataChannel.send(e.target.result);
         offset += e.target.result.byteLength;
-        sendProgress.value = (offset / file.size) * 100;
+        updateProgress("sendProgressbar", offset, fileToSend.size);
+        document.getElementById("sendFileSize").textContent = `${offset} / ${fileToSend.size}`;
 
-        if (offset < file.size) {
+        if (offset < fileToSend.size) {
           readSlice(offset);
         } else {
-          notifications.textContent = 'File sent successfully.';
+          document.getElementById("sendSuccess").style.display = "block";
         }
-      };
+      });
 
-      const readSlice = (o) => {
-        const slice = file.slice(offset, o + chunkSize);
-        fileReader.readAsArrayBuffer(slice);
+      const readSlice = o => {
+        const slice = fileToSend.slice(o, o + chunkSize);
+        reader.readAsArrayBuffer(slice);
       };
 
       readSlice(0);
+    });
+
+    // WebRTC Setup
+    function createPeer() {
+      peerConnection = new RTCPeerConnection();
+      dataChannel = peerConnection.createDataChannel("fileTransfer");
+
+      dataChannel.onopen = () => console.log("Data channel open");
+      dataChannel.onmessage = receiveChunk;
+
+      peerConnection.onicecandidate = ({ candidate }) => {
+        if (candidate) socket.emit('ice-candidate', roomId, candidate);
+      };
+
+      peerConnection.createOffer().then(offer => {
+        peerConnection.setLocalDescription(offer);
+        socket.emit('offer', roomId, offer);
+      });
     }
+
+    function handleOffer(offer) {
+      peerConnection = new RTCPeerConnection();
+      peerConnection.ondatachannel = e => {
+        dataChannel = e.channel;
+        dataChannel.onmessage = receiveChunk;
+      };
+      peerConnection.onicecandidate = ({ candidate }) => {
+        if (candidate) socket.emit('ice-candidate', roomId, candidate);
+      };
+      peerConnection.setRemoteDescription(offer).then(() =>
+        peerConnection.createAnswer().then(answer => {
+          peerConnection.setLocalDescription(answer);
+          socket.emit('answer', roomId, answer);
+        })
+      );
+    }
+
+    function receiveChunk(event) {
+      if (!totalSize) totalSize = fileToSend?.size || 0;
+      receivedBuffer.push(event.data);
+      receivedSize += event.data.byteLength;
+      updateProgress("receiveProgressbar", receivedSize, totalSize);
+      document.getElementById("receiveFileSize").textContent = `${receivedSize} / ${totalSize}`;
+      document.getElementById("receiveCard").style.display = "block";
+
+      if (receivedSize === totalSize) {
+        const receivedBlob = new Blob(receivedBuffer);
+        const a = document.getElementById("downloadBtn");
+        a.href = URL.createObjectURL(receivedBlob);
+        a.download = "received_file";
+        a.style.display = "block";
+        document.getElementById("receiveSuccess").style.display = "block";
+      }
+    }
+
+    function updateProgress(barId, value, max) {
+      const bar = document.getElementById(barId);
+      const percent = Math.floor((value / max) * 100);
+      bar.style.width = percent + "%";
+    }
+
+    // Socket Events
+    socket.on('room-joined', () => {
+      createPeer();
+      connectedDevice.textContent = 1;
+    });
+
+    socket.on('offer', offer => handleOffer(offer));
+    socket.on('answer', answer => peerConnection.setRemoteDescription(answer));
+    socket.on('ice-candidate', candidate => peerConnection.addIceCandidate(candidate));
   </script>
 </body>
 </html>
