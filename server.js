@@ -2,14 +2,29 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const cors = require('cors');
 
 const app = express();
+
+// Enable CORS for your frontend domain
+app.use(cors({
+  origin: 'https://niyasali.w3spaces.com',
+  methods: ['GET', 'POST']
+}));
+
 const server = http.createServer(app);
-const io = new Server(server);
+
+const io = new Server(server, {
+  cors: {
+    origin: 'https://niyasali.w3spaces.com',
+    methods: ['GET', 'POST']
+  }
+});
+
+// Serve static files (for socket.io.js etc.)
+app.use(express.static(path.join(__dirname, 'public')));
 
 const rooms = {};
-
-app.use(express.static(path.join(__dirname, 'public')));
 
 io.on('connection', socket => {
   socket.on('join-room', roomId => {
@@ -36,8 +51,8 @@ io.on('connection', socket => {
     socket.to(roomId).emit('file-chunk', { transferId, chunk });
   });
 
-  socket.on("send-cancel-transfer", ({ roomId, transferId }) => {
-    socket.to(roomId).emit("send-cancel-transfer", { transferId });
+  socket.on('send-cancel-transfer', ({ roomId, transferId }) => {
+    socket.to(roomId).emit('send-cancel-transfer', { transferId });
   });
 
   socket.on('disconnect', () => {
