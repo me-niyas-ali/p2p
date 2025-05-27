@@ -119,9 +119,9 @@
   <div id="receivedFilesDisplay" class="file-display-area"></div>
  </div>
 
- <script src="/socket.io/socket.io.js"></script>
+ <script src="https://p2p-share-7wvh.onrender.com/socket.io/socket.io.js"></script>
 <script>
- const socket = io();
+  const socket = io("https://p2p-share-7wvh.onrender.com");
  const roomIdInput = document.getElementById("roomIdinput");
  const roomDisplay = document.getElementById("roomId");
  const deviceDisplay = document.getElementById("connectedDevice");
