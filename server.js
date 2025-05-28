@@ -1,55 +1,39 @@
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const path = require('path');
-
+const express = require("express");
 const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
+const http = require("http").createServer(app);
+const io = require("socket.io")(http, {
+  cors: {
+    origin: "*"
+  }
+});
 
-const rooms = {};
+let users = {};
 
-app.use(express.static(path.join(__dirname, 'public')));
+io.on("connection", socket => {
+  const userName = generateName();
+  users[socket.id] = userName;
 
-io.on('connection', socket => {
-  socket.on('join-room', roomId => {
-    socket.join(roomId);
-    rooms[socket.id] = roomId;
+  socket.emit("init", { id: socket.id, name: userName });
+  io.emit("users", users);
 
-    const devices = io.sockets.adapter.rooms.get(roomId)?.size || 0;
-    socket.emit('room-joined', { roomId, devices });
-    io.to(roomId).emit('room-updated', { devices });
+  socket.on("signal", data => {
+    io.to(data.target).emit("signal", {
+      from: socket.id,
+      signal: data.signal
+    });
   });
 
-  socket.on('leave-room', roomId => {
-    socket.leave(roomId);
-    delete rooms[socket.id];
-    const devices = io.sockets.adapter.rooms.get(roomId)?.size || 0;
-    io.to(roomId).emit('room-updated', { devices });
-  });
-
-  socket.on('send-file-meta', ({ roomId, metadata }) => {
-    socket.to(roomId).emit('file-meta', metadata);
-  });
-
-  socket.on('send-file-chunk', ({ roomId, transferId, chunk }) => {
-    socket.to(roomId).emit('file-chunk', { transferId, chunk });
-  });
-
-  socket.on("send-cancel-transfer", ({ roomId, transferId }) => {
-    socket.to(roomId).emit("send-cancel-transfer", { transferId });
-  });
-
-  socket.on('disconnect', () => {
-    const roomId = rooms[socket.id];
-    if (roomId) {
-      delete rooms[socket.id];
-      const devices = io.sockets.adapter.rooms.get(roomId)?.size || 0;
-      io.to(roomId).emit('room-updated', { devices });
-    }
+  socket.on("disconnect", () => {
+    delete users[socket.id];
+    io.emit("users", users);
   });
 });
 
-server.listen(3000, () => {
-  console.log('Server running on http://localhost:3000');
-});
+function generateName() {
+  const adj = ["Quick", "Silent", "Clever", "Happy", "Bright"];
+  const noun = ["Fox", "Lion", "Tiger", "Owl", "Eagle"];
+  return `${adj[Math.floor(Math.random() * adj.length)]} ${noun[Math.floor(Math.random() * noun.length)]}`;
+}
+
+const PORT = process.env.PORT || 3000;
+http.listen(PORT, () => console.log(`Server running on ${PORT}`));
