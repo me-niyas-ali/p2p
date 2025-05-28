@@ -1,14 +1,11 @@
 {
-  "name": "p2p-file-sharing-server",
+  "name": "p2p-fileshare-backend",
   "version": "1.0.0",
-  "description": "Backend server for P2P file sharing app using WebSockets",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
-  "keywords": [],
-  "author": "Niyas",
-  "license": "MIT",
+
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.18.4",
