@@ -1,46 +1,64 @@
-// server.js
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 
 const app = express();
-app.use(cors());
-
 const server = http.createServer(app);
+
 const io = new Server(server, {
   cors: {
-    origin: '*', // allow all origins
+    origin: '*',
     methods: ['GET', 'POST']
   }
 });
 
-const users = {};
+// Store all peers
+let peers = {};
 
 io.on('connection', (socket) => {
-  console.log(`User connected: ${socket.id}`);
+  console.log(`🔌 Client connected: ${socket.id}`);
 
+  // When a user joins with a username
   socket.on('register', (username) => {
-    users[socket.id] = username;
-    socket.broadcast.emit('user-joined', { id: socket.id, username });
+    peers[socket.id] = { id: socket.id, username, online: true };
+    broadcastPeers();
   });
 
-  socket.on('signal', ({ target, signal }) => {
-    io.to(target).emit('signal', { from: socket.id, signal, username: users[socket.id] });
+  // Forward signals between peers
+  socket.on('signal', (data) => {
+    const { targetId, signal } = data;
+    if (peers[targetId]) {
+      io.to(targetId).emit('signal', {
+        fromId: socket.id,
+        signal
+      });
+    }
   });
 
+  // Send updated peer list to each client excluding themselves
+  const broadcastPeers = () => {
+    Object.keys(peers).forEach((id) => {
+      const visiblePeers = Object.values(peers)
+        .filter(p => p.id !== id)
+        .map(p => ({ id: p.id, username: p.username, online: p.online }));
+      io.to(id).emit('peer-list', visiblePeers);
+    });
+  };
+
+  // Handle disconnection
   socket.on('disconnect', () => {
-    console.log(`User disconnected: ${socket.id}`);
-    delete users[socket.id];
-    io.emit('user-left', socket.id);
+    console.log(`❌ Disconnected: ${socket.id}`);
+    delete peers[socket.id];
+    broadcastPeers();
   });
 });
 
 app.get('/', (req, res) => {
-  res.send('Signaling server is running.');
+  res.send('🔧 P2P Signaling Server is Running');
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Server is listening on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
