@@ -1,390 +1,315 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link
-      rel="icon"
-      href="https://www.w3schools.com/favicon.ico"
-      type="image/x-icon"
-    />
-    <meta name="theme-color" content="#ffffff" />
-    <meta name="description" content="Notice: This Site is User-Created" />
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>P2P File Sharing</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f1f3f6;
+      display: flex;
+      justify-content: center;
+    }
 
-    <title>Create your own website | W3 Spaces</title>
+    .container {
+      max-width: 1000px;
+      width: 100%;
+      padding: 2rem 1rem;
+    }
 
-    <style>
-      @import url("https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;700&display=swap");
-      html,
-      body {
-        margin: 0;
-        padding: 0;
-        background-color: #ffffff;
-      }
-      html,
-      body,
-      h1,
-      h2,
-      p {
-        font-family: "Source Sans Pro", sans-serif;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-      }
-      html {
-        font-size: 10vw;
-      }
-      @media screen and (max-width: 767px) {
-        html {
-          font-size: 12vw;
-        }
-      }
-      @media screen and (max-width: 640px) {
-        html {
-          font-size: 90px;
-        }
-      }
-      body {
-        background-color: #ffffff;
-        min-height: 100vh;
-        text-align: center;
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-      .-visually-hidden {
-        visibility: hidden;
-      }
-      .interstitial {
-        display: flex;
+    h2 {
+      margin-bottom: 0.5rem;
+    }
+
+    .section-card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      margin-bottom: 2rem;
+      padding: 1rem 1.5rem;
+    }
+
+    .section-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 0.5rem;
+    }
+
+    #usernameDisplay {
+      font-weight: bold;
+      margin-bottom: 1rem;
+    }
+
+    #peers {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .peer-card {
+      background: #fdfdfd;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 1rem;
+      flex: 1 1 200px;
+      max-width: 220px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .peer-card button {
+      margin-top: 0.75rem;
+      padding: 0.5rem 1rem;
+      background: #0078d7;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .peer-card button:hover {
+      background: #005fa3;
+    }
+
+    #downloads .file-progress {
+      background: #fcfcfc;
+      padding: 1rem;
+      margin-top: 1rem;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 12px;
+      background: #ddd;
+      border-radius: 10px;
+      margin-top: 0.5rem;
+      overflow: hidden;
+    }
+
+    .progress-bar-inner {
+      height: 100%;
+      background: #4caf50;
+      width: 0%;
+    }
+
+    .cancel-btn {
+      margin-top: 0.5rem;
+      background: #e53935;
+      border: none;
+      color: white;
+      padding: 0.3rem 0.8rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    @media (max-width: 600px) {
+      .peer-card {
         max-width: 100%;
-        padding-top: 30px;
-      }
-      .interstitial > .-inner-wrp {
-        display: block;
-        margin: 0 auto;
-        box-sizing: border-box;
-        max-width: 100%;
-        width: 980px;
-        width: 8.1666666667rem;
-      }
-      @media screen and (min-width: 1200px) {
-        .interstitial > .-inner-wrp {
-          width: 980px !important;
-        }
-      }
-      .interstitial > .-inner-wrp > div {
-        display: block;
         width: 100%;
-        box-sizing: border-box;
-        padding-left: 20px;
-        padding-left: 0.1666666667rem;
-        padding-right: 20px;
-        padding-right: 0.1666666667rem;
-      }
-      @media screen and (min-width: 1200px) {
-        .interstitial > .-inner-wrp > div {
-          padding-left: 20px !important;
-          padding-right: 20px !important;
-        }
-      }
-      .interstitial > .-inner-wrp > .-logo {
-        width: 100%;
-        text-align: center;
-        padding-top: 40px;
-        padding-top: 0.3333333333rem;
-      }
-      @media screen and (min-width: 1200px) {
-        .interstitial > .-inner-wrp > .-logo {
-          padding-top: 40px !important;
-        }
-      }
-      .interstitial > .-inner-wrp > .-logo > svg {
-        display: block;
-        margin: 0 auto;
-        width: 420px;
-        width: 3.5rem;
-        height: 243px;
-        height: 2.025rem;
-      }
-      @media screen and (min-width: 1200px) {
-        .interstitial > .-inner-wrp > .-logo > svg {
-          width: 420px !important;
-          height: 243px !important;
-        }
-      }
-      @media screen and (max-width: 640px) {
-        .interstitial > .-inner-wrp > .-logo {
-          display: none;
-        }
-      }
-      .interstitial > .-inner-wrp > .-info {
-        padding-top: 40px;
-        padding-top: 0.3333333333rem;
-        padding-bottom: 40px;
-        padding-bottom: 0.3333333333rem;
-        color: #252525;
-      }
-      @media screen and (min-width: 1200px) {
-        .interstitial > .-inner-wrp > .-info {
-          padding-top: 40px !important;
-          padding-bottom: 40px !important;
-        }
-      }
-      .interstitial > .-inner-wrp > .-info h1 {
-        margin: 0;
-        padding-bottom: 35px;
-        padding-bottom: 0.2916666667rem;
-        font-size: 35px;
-        font-size: 0.2916666667rem;
-        line-height: 40px;
-        line-height: 0.3333333333rem;
-      }
-      @media screen and (min-width: 1200px) {
-        .interstitial > .-inner-wrp > .-info h1 {
-          padding-bottom: 35px !important;
-          font-size: 35px !important;
-          line-height: 40px !important;
-        }
-      }
-      .interstitial > .-inner-wrp > .-info p {
-        margin: 0;
-        padding-bottom: 15px;
-        padding-bottom: 0.125rem;
-        font-size: 19px;
-        font-size: 0.1583333333rem;
-        line-height: 29px;
-        line-height: 0.2416666667rem;
-      }
-      @media screen and (min-width: 1200px) {
-        .interstitial > .-inner-wrp > .-info p {
-          padding-bottom: 15px !important;
-          font-size: 19px !important;
-          line-height: 29px !important;
-        }
-      }
-      .interstitial > .-inner-wrp > .-info .-spaces-link {
-        color: #04aa6d !important;
-      }
-      .interstitial > .-inner-wrp > .-info .-contact-us-link {
-        color: #282a35 !important;
-      }
-      .interstitial > .-inner-wrp > .-info .-create-own-website-link {
-        color: #282a35 !important;
-      }
-      .interstitial > .-inner-wrp > .-info .-continue-btn-wrp {
-        padding-top: 30px;
-        padding-top: 0.25rem;
-      }
-      @media screen and (min-width: 1200px) {
-        .interstitial > .-inner-wrp > .-info .-continue-btn-wrp {
-          padding-top: 30px !important;
-        }
-      }
-      .interstitial > .-inner-wrp > .-info .-continue-btn-wrp > .-continue-btn {
-        display: block;
-        margin: 0 auto;
-        background-color: #04aa6d;
-        color: #ffffff !important;
-        text-decoration: none !important;
-        font-weight: bold;
-        box-sizing: border-box;
-        width: 175px;
-        width: 1.4583333333rem;
-        padding-top: 15px;
-        padding-top: 0.125rem;
-        padding-bottom: 15px;
-        padding-bottom: 0.125rem;
-        padding-left: 50px;
-        padding-left: 0.4166666667rem;
-        padding-right: 50px;
-        padding-right: 0.4166666667rem;
-        border-radius: 8px;
-        border-radius: 0.0666666667rem;
-        font-size: 18px;
-        font-size: 0.15rem;
-        line-height: 18px;
-        line-height: 0.15rem;
-      }
-      @media screen and (min-width: 1200px) {
-        .interstitial
-          > .-inner-wrp
-          > .-info
-          .-continue-btn-wrp
-          > .-continue-btn {
-          width: 175px !important;
-          padding-top: 15px !important;
-          padding-bottom: 15px !important;
-          padding-left: 50px !important;
-          padding-right: 50px !important;
-          border-radius: 8px !important;
-          font-size: 18px !important;
-          line-height: 18px !important;
-        }
-      }
-      .interstitial
-        > .-inner-wrp
-        > .-info
-        .-continue-btn-wrp
-        > .-continue-btn:hover {
-        background-color: #03915d;
-      }
-      .interstitial
-        > .-inner-wrp
-        > .-info
-        .-continue-btn-wrp
-        > .-auto-continue {
-        padding-top: 10px;
-        padding-top: 0.0833333333rem;
-        font-size: 13px;
-        font-size: 0.1083333333rem;
-      }
-      @media screen and (min-width: 1200px) {
-        .interstitial
-          > .-inner-wrp
-          > .-info
-          .-continue-btn-wrp
-          > .-auto-continue {
-          padding-top: 10px !important;
-          font-size: 13px !important;
-        }
       }
 
-      .spaces-banner {
-        background-color: #282a35;
-        background-image: url('data:image/svg+xml;utf8,<svg width="1184" height="49" viewBox="0 0 1184 49" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M128.5 43C130.5 43 130.5 40 128.5 40C126.5 40 126.5 43 128.5 43Z" fill="white"/><rect width="1184" height="49" fill="%23282A35"/><path d="M1045.58 25.1359L1050 24.5L1045.58 23.8712L1045.03 23.2212L1044.5 18L1043.97 23.2212L1043.42 23.8712L1039 24.5L1043.42 25.1359L1043.97 25.7788L1044.5 31L1045.03 25.7788L1045.58 25.1359Z" fill="%23FFC82E"/><path d="M297.582 24.1359L302 23.5L297.582 22.8712L297.032 22.2212L296.5 17L295.968 22.2212L295.418 22.8712L291 23.5L295.418 24.1359L295.968 24.7788L296.5 30L297.032 24.7788L297.582 24.1359Z" fill="%23FFC82E"/><path style="mix-blend-mode:screen" fill-rule="evenodd" clip-rule="evenodd" d="M1118 24.5C1118 27.5356 1120.68 30 1124 30C1127.32 30 1130 27.5356 1130 24.5C1130 21.4644 1127.32 19 1124 19C1120.68 19 1118 21.4644 1118 24.5Z" fill="url(%23paint0_radial_21_30)"/><path style="mix-blend-mode:screen" fill-rule="evenodd" clip-rule="evenodd" d="M176 20.5C176 23.5356 178.684 26 182 26C185.316 26 188 23.5356 188 20.5C188 17.4644 185.316 15 182 15C178.684 15 176 17.4644 176 20.5Z" fill="url(%23paint1_radial_21_30)"/><path style="mix-blend-mode:screen" fill-rule="evenodd" clip-rule="evenodd" d="M924 14.5C924 17.5356 926.684 20 930 20C933.316 20 936 17.5356 936 14.5C936 11.4644 933.316 9 930 9C926.684 9 924 11.4644 924 14.5Z" fill="url(%23paint2_radial_21_30)"/><path style="mix-blend-mode:screen" fill-rule="evenodd" clip-rule="evenodd" d="M36 14.5C36 17.5356 38.6842 20 42 20C45.3158 20 48 17.5356 48 14.5C48 11.4644 45.3158 9 42 9C38.6842 9 36 11.4644 36 14.5Z" fill="url(%23paint3_radial_21_30)"/><defs><radialGradient id="paint0_radial_21_30" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1124.01 24.4) rotate(180) scale(6.0051 5.49717)"><stop stop-color="%2300AF66"/><stop offset="0.14" stop-color="%2300AF66"/><stop offset="0.43" stop-color="%2300031B"/><stop offset="0.68" stop-color="%2300031B"/><stop offset="0.88" stop-color="%2300031B"/><stop offset="1"/></radialGradient><radialGradient id="paint1_radial_21_30" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(182.008 20.4) rotate(180) scale(6.0051 5.49717)"><stop stop-color="%2300AF66"/><stop offset="0.14" stop-color="%2300AF66"/><stop offset="0.43" stop-color="%2300031B"/><stop offset="0.68" stop-color="%2300031B"/><stop offset="0.88" stop-color="%2300031B"/><stop offset="1"/></radialGradient><radialGradient id="paint2_radial_21_30" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(930.008 14.4) rotate(-180) scale(6.0051 5.49717)"><stop stop-color="%2300AF66"/><stop offset="0.14" stop-color="%2300AF66"/><stop offset="0.43" stop-color="%2300031B"/><stop offset="0.68" stop-color="%2300031B"/><stop offset="0.88" stop-color="%2300031B"/><stop offset="1"/></radialGradient><radialGradient id="paint3_radial_21_30" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(42.0083 14.4) rotate(-180) scale(6.0051 5.49717)"><stop stop-color="%2300AF66"/><stop offset="0.14" stop-color="%2300AF66"/><stop offset="0.43" stop-color="%2300031B"/><stop offset="0.68" stop-color="%2300031B"/><stop offset="0.88" stop-color="%2300031B"/><stop offset="1"/></radialGradient></defs></svg>');
-        background-repeat: no-repeat;
-        background-size: cover;
-        color: #ffffff;
-        font-family: "Source Sans Pro", sans-serif;
-        font-size: 18px;
-        text-align: center;
-        padding: 10px 0;
-        border-bottom: 1px solid #e0e0e0;
-        width: 100vw;
-        position: fixed;
-        top: 0;
-        left: 0;
-        z-index: 9999;
-        box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
+      .container {
+        padding: 1rem;
       }
-
-      .spaces-banner .start-now {
-        text-decoration: none;
-        font-size: 15px;
-        color: #089a66;
-        border: 1px solid #089a66;
-        max-width: 144px;
-        text-align: center;
-        padding: 3px 6px;
-        border-radius: 5px;
-        margin-left: 10px;
-      }
-
-      @media (max-width: 640px) {
-        .spaces-banner .start-now {
-          display: block;
-          margin: 10px auto;
-          margin-bottom: 2px;
-        }
-      }
-    </style>
-  </head>
-
-  <body>
-    <div class="spaces-banner">
-      Want to create your own <strong>Spaces</strong> website?
-      <a
-        href="https://www.w3schools.com/spaces/index.php"
-        target="_blank"
-        class="start-now"
-        >Start building today!</a
-      >
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="section-card">
+      <div id="usernameDisplay"></div>
     </div>
 
-    <div class="interstitial">
-      <div class="-inner-wrp">
-        <div class="-logo">
-          <svg
-            viewBox="0 0 420 243"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M159.541 143.906C157.487 143.906 155.121 144.717 154.371 145.681L88.7679 229.932C87.0676 232.116 86.443 234.216 87.1023 235.561C87.595 236.559 88.7609 237.093 90.489 237.093H356.192C357.913 237.093 359.086 236.566 359.578 235.561C360.238 234.223 359.613 232.116 357.913 229.932L292.31 145.681C291.56 144.717 289.193 143.906 287.139 143.906H159.541Z"
-              fill="#EDF7F7"
-            />
-            <path
-              d="M85.6656 235.554C85.6656 235.554 85.0965 237.779 91.1759 237.779H356.185C356.185 237.779 360.356 238.091 360.064 234.341C360.064 234.341 360.98 242.078 355.303 242.078H89.9475C89.9475 242.078 83.7849 239.27 85.6656 235.554Z"
-              fill="#9E9E9E"
-            />
-            <path
-              opacity="0.63"
-              d="M280.915 148.343C280.276 147.601 278.861 146.998 277.369 146.797C277.015 146.748 276.661 146.721 276.307 146.721H166.35C164.359 146.721 162.172 147.539 161.492 148.565L152.915 161.376L115.099 217.869L114.682 218.486C112.503 221.745 113.683 224.504 117.389 224.504H321.798C325.504 224.504 326.809 221.738 324.775 218.486L311.194 196.753L303.213 183.983L293.872 169.037L281.081 148.565C281.033 148.488 280.977 148.419 280.915 148.343Z"
-              fill="#96D4D4"
-            />
-            <g opacity="0.64">
-              <path
-                d="M218.281 146.714L115.091 217.862L114.675 218.479C112.495 221.738 113.675 224.497 117.381 224.497H127.153L229.947 146.707H218.274L218.281 146.714Z"
-                fill="#88C4C4"
-              />
-              <path
-                d="M239.344 146.714L144.627 224.504H186.663L261.961 146.714H239.344Z"
-                fill="#88C4C4"
-              />
-              <path
-                d="M166.342 146.714C164.351 146.714 162.165 147.532 161.485 148.558L152.907 161.369L180.313 146.714H166.349H166.342Z"
-                fill="#88C4C4"
-              />
-              <path
-                d="M303.601 224.504H321.79C325.496 224.504 326.801 221.738 324.768 218.486L311.186 196.753L303.601 224.511V224.504Z"
-                fill="#88C4C4"
-              />
-              <path
-                d="M277.361 146.79L215.408 224.504H224.145L280.914 148.343C280.276 147.601 278.86 146.998 277.368 146.797L277.361 146.79Z"
-                fill="#88C4C4"
-              />
-              <path
-                d="M293.871 169.03L266.472 224.504H288.493L303.205 183.976L293.871 169.03Z"
-                fill="#88C4C4"
-              />
-            </g>
-            <path
-              d="M355.311 242.764H90.982C88.5391 242.764 86.353 241.384 85.2635 239.159C84.0629 236.698 84.7083 233.578 86.5265 231.228L87.2622 232.448C85.8534 234.272 85.9922 236.504 86.9013 238.362C87.6855 239.977 89.2123 240.941 90.982 240.941H355.311C357.08 240.941 358.607 239.977 359.391 238.362C360.294 236.504 360.509 233.606 359.1 231.783L359.516 231.755C359.801 231.533 360.21 231.61 360.412 231.915C361.89 234.168 362.133 236.892 361.022 239.166C359.94 241.391 357.747 242.771 355.304 242.771L355.311 242.764Z"
-              fill="#282A35"
-            />
-            <path
-              d="M356.192 238.258H90.4827C88.3105 238.258 86.7352 237.481 86.0412 236.067C85.1737 234.286 85.826 231.783 87.8386 229.204L153.442 144.953C154.414 143.705 157.092 142.728 159.542 142.728H287.126C289.576 142.728 292.255 143.705 293.226 144.953L358.83 229.204C360.842 231.79 361.495 234.292 360.627 236.067C359.933 237.481 358.358 238.258 356.186 238.258H356.192ZM159.542 143.906C157.488 143.906 155.121 144.717 154.372 145.681L88.7686 229.932C87.0683 232.116 86.4437 234.216 87.103 235.561C87.5957 236.559 88.7616 237.093 90.4897 237.093H356.192C357.914 237.093 359.086 236.566 359.579 235.561C360.238 234.223 359.614 232.116 357.914 229.932L292.31 145.681C291.561 144.717 289.194 143.906 287.14 143.906H159.542Z"
-              fill="#282A35"
-            />
-            <path
-              d="M321.791 224.809H117.382C115.578 224.809 114.245 224.178 113.634 223.027C112.968 221.779 113.253 220.06 114.419 218.313L161.229 148.391C161.971 147.282 164.22 146.416 166.343 146.416H276.3C278.43 146.416 280.637 147.289 281.338 148.405L325.032 218.327C326.108 220.046 326.33 221.751 325.636 222.992C324.984 224.164 323.623 224.809 321.791 224.809ZM166.343 147.019C164.47 147.019 162.36 147.802 161.735 148.724L114.925 218.646C113.884 220.199 113.614 221.689 114.169 222.736C114.668 223.679 115.814 224.192 117.382 224.192H321.791C323.387 224.192 324.56 223.658 325.102 222.687C325.684 221.641 325.469 220.164 324.512 218.639L280.818 148.717C280.242 147.795 278.174 147.019 276.3 147.019H166.343Z"
-              fill="#282A35"
-            />
-            <path
-              d="M132.136 182.59C131.247 182.59 130.574 182.271 130.297 181.716C130.054 181.231 130.144 180.642 130.553 180.101L139.77 167.692C140.38 166.867 141.865 166.229 143.149 166.229C144.01 166.229 144.655 166.52 144.919 167.033C145.134 167.442 145.072 167.934 144.759 168.378L135.994 180.787C135.279 181.799 133.593 182.59 132.15 182.59H132.136ZM143.136 167.407C142.136 167.407 141.054 167.927 140.707 168.399L131.49 180.808C131.351 180.995 131.317 181.141 131.345 181.196C131.386 181.286 131.643 181.418 132.136 181.418C133.184 181.418 134.53 180.808 135.016 180.115L143.781 167.705C143.85 167.608 143.857 167.56 143.857 167.553C143.836 167.539 143.642 167.4 143.142 167.4L143.136 167.407Z"
-              fill="#282A35"
-            />
-            <path
-              d="M307.501 177.688C304.621 177.688 301.269 176.142 300.027 174.243C299.465 173.39 299.375 172.516 299.763 171.795C300.27 170.86 301.519 170.319 303.192 170.319C305.968 170.319 309.188 171.747 310.534 173.57C311.2 174.471 311.346 175.393 310.958 176.163C310.472 177.127 309.209 177.681 307.501 177.681V177.688ZM303.192 171.497C301.998 171.497 301.082 171.823 300.797 172.357C300.575 172.773 300.79 173.265 301.013 173.598C302.047 175.179 305.017 176.51 307.501 176.51C308.716 176.51 309.639 176.177 309.91 175.636C310.139 175.179 309.861 174.638 309.59 174.27C308.48 172.766 305.558 171.497 303.199 171.497H303.192Z"
-              fill="#282A35"
-            />
-            <path
-              d="M306.211 175.491C305.052 175.491 303.671 174.88 303.116 174.111C302.845 173.737 302.783 173.355 302.942 173.036C303.136 172.641 303.643 172.406 304.33 172.392C305.496 172.35 306.877 172.96 307.467 173.737C307.758 174.118 307.828 174.506 307.668 174.839C307.474 175.241 306.967 175.477 306.273 175.491C306.253 175.491 306.232 175.491 306.211 175.491ZM304.344 172.891C303.865 172.898 303.497 173.043 303.386 173.258C303.289 173.445 303.407 173.667 303.518 173.82C303.983 174.464 305.212 174.991 306.211 174.991C306.232 174.991 306.246 174.991 306.266 174.991C306.759 174.984 307.113 174.839 307.224 174.617C307.321 174.409 307.176 174.159 307.078 174.035C306.593 173.39 305.35 172.863 304.344 172.884V172.891Z"
-              fill="#282A35"
-            />
-            <path
-              d="M267.977 191.026C269.341 192.389 269.341 194.605 267.977 195.978C266.614 197.341 264.397 197.341 263.023 195.978C261.659 194.615 261.659 192.399 263.023 191.026C264.386 189.653 266.603 189.663 267.977 191.026Z"
-              fill="#04AA6D"
-            />
-            <path
-              d="M227.977 149.026C229.341 150.389 229.341 152.605 227.977 153.978C226.614 155.341 224.397 155.341 223.023 153.978C221.659 152.615 221.659 150.399 223.023 149.026C224.386 147.653 226.603 147.663 227.977 149.026Z"
-              fill="#04AA6D"
-            />
-            <path
-              d="M167.933 174.988C169.251 176.305 169.251 178.44 167.933 179.757C166.614 181.075 164.476 181.075 163.158 179.757C161.839 178.44 161.839 176.305 163.158 174.988C164.476 173.671 166.614 173.671 167.933 174.988Z"
-              fill="#04AA6D"
-            />
-            <path d="M328 134H325V144H328V134Z" fill="#96D4D4" />
-            <path
-              d="M404 144H400.524V134H404V144ZM397.048 144H393.571V134H397.048V144ZM390.095 144H386.619V134H390.095V144ZM383.143 144H379.667V134H383.143V
+    <div class="section-card">
+      <div class="section-title">Connected Peers</div>
+      <div id="peers"></div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-title">File Transfers</div>
+      <div id="downloads"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script>
+    const socket = io('https://p2p-share-7wvh.onrender.com');
+    const localUsername = generateUsername();
+    document.getElementById('usernameDisplay').textContent = `You are: ${localUsername}`;
+    socket.emit('register', localUsername);
+
+    const peers = {};
+    const peerUsernames = {};
+    const cancelFlags = {};
+
+    function generateUsername() {
+      const adjectives = ['Fast', 'Sly', 'Brave', 'Clever', 'Wise'];
+      const nouns = ['Tiger', 'Eagle', 'Shark', 'Wolf', 'Panther'];
+      return (
+        adjectives[Math.floor(Math.random() * adjectives.length)] + ' ' +
+        nouns[Math.floor(Math.random() * nouns.length)]
+      );
+    }
+
+    function createPeerConnection(id, username) {
+      const peer = new RTCPeerConnection();
+      const dataChannel = peer.createDataChannel('file');
+
+      peers[id] = { peer, dataChannel, chunks: [], meta: null, received: 0 };
+
+      dataChannel.onopen = () => console.log('Channel open with', username);
+
+      dataChannel.onmessage = (event) => {
+        if (typeof event.data === 'string') {
+          const meta = JSON.parse(event.data);
+          const accept = confirm(`Receive file "${meta.filename}" (${Math.round(meta.size / 1024)} KB) from ${username}?`);
+          if (accept) {
+            peers[id].meta = meta;
+            peers[id].chunks = [];
+            peers[id].received = 0;
+            cancelFlags[id] = false;
+            createProgressBar(username, meta.filename, id, true);
+          }
+        } else {
+          const info = peers[id];
+          if (cancelFlags[id]) return;
+          info.chunks.push(event.data);
+          info.received += event.data.byteLength;
+          updateProgressBar(id, info.received / info.meta.size * 100);
+          if (info.received >= info.meta.size) {
+            const blob = new Blob(info.chunks, { type: info.meta.mimeType });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = info.meta.filename;
+            a.textContent = `Download ${info.meta.filename}`;
+            a.style.display = 'block';
+            document.getElementById(`progress-${id}`).appendChild(a);
+          }
+        }
+      };
+
+      peer.onicecandidate = (e) => {
+        if (e.candidate) {
+          socket.emit('signal', { target: id, signal: { candidate: e.candidate } });
+        }
+      };
+
+      return peer;
+    }
+
+    function addPeerCard(id, username) {
+      peerUsernames[id] = username;
+      const div = document.createElement('div');
+      div.className = 'peer-card';
+      div.id = `peer-${id}`;
+      div.innerHTML = `
+        <strong>${username}</strong>
+        <button onclick="sendFileTo('${id}')">Send File</button>
+      `;
+      document.getElementById('peers').appendChild(div);
+    }
+
+    async function sendFileTo(id) {
+      const { dataChannel } = peers[id];
+      if (!dataChannel || dataChannel.readyState !== 'open') return alert('Channel not open.');
+
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.onchange = async () => {
+        const file = input.files[0];
+        const chunkSize = 64 * 1024;
+        let offset = 0;
+        cancelFlags[id] = false;
+
+        dataChannel.send(JSON.stringify({
+          filename: file.name,
+          mimeType: file.type,
+          size: file.size
+        }));
+
+        createProgressBar(peerUsernames[id], file.name, id, false);
+
+        while (offset < file.size && !cancelFlags[id]) {
+          const chunk = await file.slice(offset, offset + chunkSize).arrayBuffer();
+          dataChannel.send(chunk);
+          offset += chunkSize;
+          updateProgressBar(id, offset / file.size * 100);
+        }
+
+        if (cancelFlags[id]) {
+          alert('Transfer cancelled.');
+        } else {
+          alert('File sent!');
+        }
+      };
+      input.click();
+    }
+
+    socket.on('user-joined', async ({ id, username }) => {
+      addPeerCard(id, username);
+      const peer = createPeerConnection(id, username);
+      const offer = await peer.createOffer();
+      await peer.setLocalDescription(offer);
+      socket.emit('signal', { target: id, signal: { offer } });
+    });
+
+    socket.on('signal', async ({ from, signal, username }) => {
+      let peerConn = peers[from]?.peer;
+      if (!peerConn) {
+        addPeerCard(from, username);
+        peerConn = createPeerConnection(from, username);
+        peers[from] = { peer: peerConn, chunks: [], meta: null, received: 0 };
+      }
+
+      if (signal.offer) {
+        await peerConn.setRemoteDescription(new RTCSessionDescription(signal.offer));
+        const answer = await peerConn.createAnswer();
+        await peerConn.setLocalDescription(answer);
+        socket.emit('signal', { target: from, signal: { answer } });
+      } else if (signal.answer) {
+        await peerConn.setRemoteDescription(new RTCSessionDescription(signal.answer));
+      } else if (signal.candidate) {
+        await peerConn.addIceCandidate(new RTCIceCandidate(signal.candidate));
+      }
+    });
+
+    socket.on('user-left', (id) => {
+      document.getElementById(`peer-${id}`)?.remove();
+      document.getElementById(`progress-${id}`)?.remove();
+      delete peers[id];
+      delete cancelFlags[id];
+    });
+
+    function createProgressBar(peerName, filename, id, isReceiving) {
+      const div = document.createElement('div');
+      div.className = 'file-progress';
+      div.id = `progress-${id}`;
+      div.innerHTML = `
+        <div>${isReceiving ? 'Receiving' : 'Sending'} <strong>${filename}</strong> ${isReceiving ? 'from' : 'to'} <strong>${peerName}</strong></div>
+        <div class="progress-bar"><div class="progress-bar-inner" id="bar-${id}"></div></div>
+        <button class="cancel-btn" onclick="cancelTransfer('${id}')">Cancel</button>
+      `;
+      document.getElementById('downloads').appendChild(div);
+    }
+
+    function updateProgressBar(id, percent) {
+      const bar = document.getElementById(`bar-${id}`);
+      if (bar) bar.style.width = percent + '%';
+    }
+
+    function cancelTransfer(id) {
+      cancelFlags[id] = true;
+      document.getElementById(`progress-${id}`)?.remove();
+    }
+  </script>
+</body>
+</html>
