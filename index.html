@@ -62,6 +62,21 @@
       display: flex;
       flex-direction: column;
       align-items: flex-start;
+      position: relative;
+    }
+
+    .status-dot {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: gray;
+    }
+
+    .status-online {
+      background: green;
     }
 
     .peer-card button {
@@ -142,7 +157,7 @@
 
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script>
-    const socket = io('https://p2p-share-7wvh.onrender.com');
+    const socket = io('https://p2p-signaling-server.onrender.com');
     const localUsername = generateUsername();
     document.getElementById('usernameDisplay').textContent = `You are: ${localUsername}`;
     socket.emit('register', localUsername);
@@ -150,6 +165,7 @@
     const peers = {};
     const peerUsernames = {};
     const cancelFlags = {};
+    const peerElements = {};
 
     function generateUsername() {
       const adjectives = ['Fast', 'Sly', 'Brave', 'Clever', 'Wise'];
@@ -207,15 +223,26 @@
     }
 
     function addPeerCard(id, username) {
+      if (username === localUsername) return;
+
       peerUsernames[id] = username;
+
       const div = document.createElement('div');
       div.className = 'peer-card';
       div.id = `peer-${id}`;
       div.innerHTML = `
+        <span class="status-dot status-online"></span>
         <strong>${username}</strong>
         <button onclick="sendFileTo('${id}')">Send File</button>
       `;
+      peerElements[id] = div;
       document.getElementById('peers').appendChild(div);
+    }
+
+    function removePeerCard(id) {
+      document.getElementById(`peer-${id}`)?.remove();
+      delete peerUsernames[id];
+      delete peerElements[id];
     }
 
     async function sendFileTo(id) {
@@ -255,14 +282,18 @@
     }
 
     socket.on('user-joined', async ({ id, username }) => {
-      addPeerCard(id, username);
-      const peer = createPeerConnection(id, username);
-      const offer = await peer.createOffer();
-      await peer.setLocalDescription(offer);
-      socket.emit('signal', { target: id, signal: { offer } });
+      if (username !== localUsername) {
+        addPeerCard(id, username);
+        const peer = createPeerConnection(id, username);
+        const offer = await peer.createOffer();
+        await peer.setLocalDescription(offer);
+        socket.emit('signal', { target: id, signal: { offer } });
+      }
     });
 
     socket.on('signal', async ({ from, signal, username }) => {
+      if (username === localUsername) return;
+
       let peerConn = peers[from]?.peer;
       if (!peerConn) {
         addPeerCard(from, username);
@@ -283,7 +314,7 @@
     });
 
     socket.on('user-left', (id) => {
-      document.getElementById(`peer-${id}`)?.remove();
+      removePeerCard(id);
       document.getElementById(`progress-${id}`)?.remove();
       delete peers[id];
       delete cancelFlags[id];
