@@ -1,5 +1,5 @@
 {
-  "name": "p2p-fileshare-backend",
+  "name": "p2p-fileshare",
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
