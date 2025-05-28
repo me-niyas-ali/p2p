@@ -1,39 +1,46 @@
-const express = require("express");
+// server.js
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const cors = require('cors');
+
 const app = express();
-const http = require("http").createServer(app);
-const io = require("socket.io")(http, {
+app.use(cors());
+
+const server = http.createServer(app);
+const io = new Server(server, {
   cors: {
-    origin: "*"
+    origin: '*', // allow all origins
+    methods: ['GET', 'POST']
   }
 });
 
-let users = {};
+const users = {};
 
-io.on("connection", socket => {
-  const userName = generateName();
-  users[socket.id] = userName;
+io.on('connection', (socket) => {
+  console.log(`User connected: ${socket.id}`);
 
-  socket.emit("init", { id: socket.id, name: userName });
-  io.emit("users", users);
-
-  socket.on("signal", data => {
-    io.to(data.target).emit("signal", {
-      from: socket.id,
-      signal: data.signal
-    });
+  socket.on('register', (username) => {
+    users[socket.id] = username;
+    socket.broadcast.emit('user-joined', { id: socket.id, username });
   });
 
-  socket.on("disconnect", () => {
+  socket.on('signal', ({ target, signal }) => {
+    io.to(target).emit('signal', { from: socket.id, signal, username: users[socket.id] });
+  });
+
+  socket.on('disconnect', () => {
+    console.log(`User disconnected: ${socket.id}`);
     delete users[socket.id];
-    io.emit("users", users);
+    io.emit('user-left', socket.id);
   });
 });
 
-function generateName() {
-  const adj = ["Quick", "Silent", "Clever", "Happy", "Bright"];
-  const noun = ["Fox", "Lion", "Tiger", "Owl", "Eagle"];
-  return `${adj[Math.floor(Math.random() * adj.length)]} ${noun[Math.floor(Math.random() * noun.length)]}`;
-}
+app.get('/', (req, res) => {
+  res.send('Signaling server is running.');
+});
 
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => console.log(`Server running on ${PORT}`));
+server.listen(PORT, () => {
+  console.log(`Server is listening on port ${PORT}`);
+});
