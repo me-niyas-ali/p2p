@@ -1,846 +1,418 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>P2P File Sharing - Niyas</title>
-<style>
-  /* Reset and base */
-  * {
-    box-sizing: border-box;
-  }
-  body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    margin: 0; padding: 0;
-    background: #f7f9fc;
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-    color: #222;
-  }
-  header {
-    background: #007bff;
-    color: white;
-    padding: 1rem;
-    text-align: center;
-    font-weight: 700;
-    font-size: 1.4rem;
-  }
-  main {
-    flex: 1;
-    padding: 1rem;
-    max-width: 600px;
-    margin: 0 auto;
-    width: 100%;
-  }
-
-  .room-controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-    align-items: center;
-  }
-  .room-controls input[type="text"] {
-    flex: 1;
-    padding: 0.6rem 0.8rem;
-    font-size: 1.2rem;
-    border: 2px solid #007bff;
-    border-radius: 4px;
-    letter-spacing: 0.2em;
-    text-align: center;
-  }
-  .room-controls button {
-    background: #007bff;
-    border: none;
-    color: white;
-    font-size: 1.1rem;
-    padding: 0.6rem 1rem;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background 0.3s ease;
-  }
-  .room-controls button:disabled {
-    background: #aaa;
-    cursor: not-allowed;
-  }
-  .room-controls button:hover:not(:disabled) {
-    background: #0056b3;
-  }
-
-  .info {
-    margin-bottom: 1rem;
-    font-weight: 600;
-    font-size: 1rem;
-    color: #333;
-  }
-  .info span {
-    font-weight: 700;
-  }
-
-  .file-selector {
-    margin-bottom: 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-  }
-  .file-selector label {
-    font-weight: 600;
-  }
-  .file-selector input[type="file"] {
-    cursor: pointer;
-  }
-
-  .file-info {
-    margin-top: 0.4rem;
-    font-size: 0.9rem;
-    color: #555;
-  }
-
-  .btn-send {
-    background: #28a745;
-    border: none;
-    color: white;
-    padding: 0.7rem 1rem;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 1.1rem;
-    font-weight: 600;
-    transition: background 0.3s ease;
-    margin-bottom: 1rem;
-    width: 100%;
-  }
-  .btn-send:disabled {
-    background: #9dd19d;
-    cursor: not-allowed;
-  }
-  .btn-send:hover:not(:disabled) {
-    background: #1e7e34;
-  }
-
-  /* Cards for transfers */
-  .transfer-cards {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-  .card {
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 3px 7px rgb(0 0 0 / 0.1);
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    border-left: 6px solid #007bff;
-  }
-  .card.sending {
-    border-left-color: #28a745;
-  }
-  .card.receiving {
-    border-left-color: #ffc107;
-  }
-  .card-header {
-    display: flex;
-    justify-content: space-between;
-    font-weight: 700;
-    font-size: 1.1rem;
-  }
-  .card-body {
-    font-size: 0.9rem;
-    color: #333;
-  }
-  .progress-container {
-    background: #eee;
-    border-radius: 6px;
-    overflow: hidden;
-    height: 14px;
-    margin-top: 0.4rem;
-  }
-  .progress-bar {
-    background: #007bff;
-    height: 100%;
-    width: 0%;
-    transition: width 0.2s ease;
-  }
-  .card-buttons {
-    margin-top: 0.7rem;
-    display: flex;
-    gap: 0.7rem;
-  }
-  .btn {
-    cursor: pointer;
-    border: none;
-    padding: 0.4rem 0.8rem;
-    border-radius: 4px;
-    font-weight: 600;
-    font-size: 0.9rem;
-    transition: background 0.3s ease;
-  }
-  .btn.cancel {
-    background: #dc3545;
-    color: white;
-  }
-  .btn.cancel:hover {
-    background: #a71d2a;
-  }
-  .btn.download {
-    background: #007bff;
-    color: white;
-  }
-  .btn.download:hover {
-    background: #0056b3;
-  }
-
-  /* Toast notifications */
-  #toast-container {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 9999;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    max-width: 320px;
-  }
-  .toast {
-    background: #333;
-    color: white;
-    padding: 0.8rem 1rem;
-    border-radius: 6px;
-    opacity: 0.9;
-    font-size: 0.9rem;
-    animation: fadeinout 3s forwards;
-  }
-  .toast.success {
-    background: #28a745;
-  }
-  .toast.error {
-    background: #dc3545;
-  }
-  .toast.info {
-    background: #007bff;
-  }
-  @keyframes fadeinout {
-    0% {opacity: 0; transform: translateX(100%);}
-    10%, 90% {opacity: 0.9; transform: translateX(0);}
-    100% {opacity: 0; transform: translateX(100%);}
-  }
-
-  /* Modal */
-  #modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.5);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 99999;
-  }
-  #modal {
-    background: white;
-    padding: 1.5rem 2rem;
-    border-radius: 10px;
-    max-width: 90vw;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-  }
-  #modal p {
-    margin-bottom: 1rem;
-    font-size: 1.1rem;
-  }
-  #modal button {
-    margin-right: 1rem;
-    padding: 0.6rem 1.2rem;
-    font-weight: 600;
-    border-radius: 5px;
-    border: none;
-    cursor: pointer;
-    font-size: 1rem;
-    transition: background 0.3s ease;
-  }
-  #modal button.confirm {
-    background: #28a745;
-    color: white;
-  }
-  #modal button.confirm:hover {
-    background: #1e7e34;
-  }
-  #modal button.cancel {
-    background: #dc3545;
-    color: white;
-  }
-  #modal button.cancel:hover {
-    background: #a71d2a;
-  }
-
-  /* Responsive */
-  @media (max-width: 480px) {
-    main {
-      padding: 0.8rem;
-    }
-    .room-controls {
-      flex-direction: column;
-    }
-    .room-controls input[type="text"] {
-      letter-spacing: normal;
-      font-size: 1rem;
-    }
-    .btn-send {
-      font-size: 1rem;
-    }
-  }
-</style>
+    <meta charset="UTF-8">
+    <title>P2P File Share</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f2f2f2; margin: 0; padding: 10px; }
+        .card { background: #fff; border: 1px solid #ccc; border-radius: 6px; padding: 20px; margin: 10px auto; max-width: 600px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        h2 { margin-top: 0; }
+        input, button { padding: 8px; margin: 5px 0; }
+        button { cursor: pointer; }
+        #file-input { width: 100%; }
+        #send-button { margin-top: 10px; }
+        .transfer-card { margin: 10px 0; }
+        .progress-container { background: #eee; border-radius: 4px; overflow: hidden; width: 100%; height: 20px; }
+        .progress-bar { background: #4caf50; height: 100%; width: 0%; }
+        #toast-container { position: fixed; top: 10px; right: 10px; z-index: 1000; }
+        .toast { background: #333; color: #fff; padding: 10px; margin-top: 5px; border-radius: 4px; opacity: 0.9; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width:100%; height:100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+        .modal-content { background: #fff; padding: 20px; border-radius: 6px; text-align: center; }
+        .modal button { margin: 10px; }
+        @media (max-width: 600px) {
+            .card { width: 90%; }
+        }
+    </style>
 </head>
 <body>
-<header>P2P File Sharing - Niyas</header>
-<main>
-  <div class="room-controls">
-    <input type="text" id="roomIdInput" maxlength="4" placeholder="Enter 4-digit Room ID" pattern="\d{4}" inputmode="numeric" />
-    <button id="joinRoomBtn">Join Room</button>
-  </div>
+    <!-- Room Join Card -->
+    <div class="card" id="room-card">
+        <h2>Join Room</h2>
+        <input id="room-id-input" type="text" placeholder="Enter 4-digit Room ID" maxlength="4" pattern="\d*">
+        <button id="join-button">Join Room</button>
+        <div id="room-info" style="margin-top: 10px;">
+            <strong>Room:</strong> <span id="current-room">None</span><br>
+            <strong>Peers:</strong> <span id="peer-count">0</span>
+        </div>
+    </div>
 
-  <div class="info" id="roomInfo" style="display:none;">
-    Room ID: <span id="displayRoomId"></span> | Connected Peers: <span id="peerCount">0</span>
-  </div>
+    <!-- File Transfer Card (hidden until joined) -->
+    <div class="card" id="file-card" style="display: none;">
+        <h2>File Transfer</h2>
+        <input type="file" id="file-input"><br>
+        <div id="file-info"></div>
+        <button id="send-button" disabled>Send</button>
+    </div>
 
-  <div class="file-selector" style="display:none;">
-    <label for="fileInput">Select file to send:</label>
-    <input type="file" id="fileInput" />
-    <div class="file-info" id="fileInfo"></div>
-  </div>
+    <!-- Container for dynamic transfer cards -->
+    <div id="transfer-container"></div>
 
-  <button class="btn-send" id="sendBtn" disabled>Send</button>
+    <!-- Toast notifications -->
+    <div id="toast-container"></div>
 
-  <div class="transfer-cards" id="transferCards"></div>
-</main>
+    <!-- Modal confirmation dialog -->
+    <div id="confirm-modal" class="modal">
+        <div class="modal-content">
+            <p id="modal-text">Peer wants to send file</p>
+            <button id="accept-file-button">Accept</button>
+            <button id="reject-file-button">Reject</button>
+        </div>
+    </div>
 
-<div id="toast-container"></div>
+    <!-- Socket.IO library -->
+    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+    <script>
+        const socket = io('https://p2p-share-7wvh.onrender.com'); // replace with your deployed backend URL
 
-<div id="modal-overlay">
-  <div id="modal">
-    <p id="modal-message"></p>
-    <button class="confirm" id="modal-confirm">Yes</button>
-    <button class="cancel" id="modal-cancel">No</button>
-  </div>
-</div>
+        let roomId = null;
+        let peers = new Set();
+        const peerConnections = {};   // RTCPeerConnection objects keyed by peer ID
+        const dataChannels = {};      // RTCDataChannel objects keyed by peer ID
+        let selectedFile = null;
+        let acceptedPeers = [];
+        let sendInProgress = false;
+        const chunkSize = 16 * 1024; // 16KB chunks
 
-<script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
-<script>
-(() => {
-  const socket = io("https://p2p-share-7wvh.onrender.com"); // << Replace with your deployed server URL
+        // UI elements
+        const joinBtn = document.getElementById('join-button');
+        const roomInput = document.getElementById('room-id-input');
+        const currentRoomSpan = document.getElementById('current-room');
+        const peerCountSpan = document.getElementById('peer-count');
+        const fileCard = document.getElementById('file-card');
+        const fileInput = document.getElementById('file-input');
+        const sendButton = document.getElementById('send-button');
+        const fileInfo = document.getElementById('file-info');
+        const transferContainer = document.getElementById('transfer-container');
+        const toastContainer = document.getElementById('toast-container');
+        const modal = document.getElementById('confirm-modal');
+        const modalText = document.getElementById('modal-text');
+        const acceptBtn = document.getElementById('accept-file-button');
+        const rejectBtn = document.getElementById('reject-file-button');
 
-  const roomIdInput = document.getElementById("roomIdInput");
-  const joinRoomBtn = document.getElementById("joinRoomBtn");
-  const roomInfo = document.getElementById("roomInfo");
-  const displayRoomId = document.getElementById("displayRoomId");
-  const peerCountSpan = document.getElementById("peerCount");
-
-  const fileInput = document.getElementById("fileInput");
-  const fileInfo = document.getElementById("fileInfo");
-  const sendBtn = document.getElementById("sendBtn");
-
-  const transferCards = document.getElementById("transferCards");
-
-  const toastContainer = document.getElementById("toast-container");
-
-  const modalOverlay = document.getElementById("modal-overlay");
-  const modalMessage = document.getElementById("modal-message");
-  const modalConfirm = document.getElementById("modal-confirm");
-  const modalCancel = document.getElementById("modal-cancel");
-
-  let roomId = null;
-  let isHost = false;
-  let connectedPeers = new Map(); // peerId -> RTCPeerConnection & dataChannels
-
-  let localSocketId = null;
-  let joined = false;
-
-  let fileToSend = null;
-  let fileReader = null;
-
-  // --- Utility functions ---
-
-  function toast(msg, type = "info") {
-    const toastEl = document.createElement("div");
-    toastEl.className = `toast ${type}`;
-    toastEl.textContent = msg;
-    toastContainer.appendChild(toastEl);
-    setTimeout(() => toastEl.remove(), 3000);
-  }
-
-  function formatBytes(bytes) {
-    if (bytes < 1024) return bytes + " B";
-    let kb = bytes / 1024;
-    if (kb < 1024) return kb.toFixed(1) + " KB";
-    let mb = kb / 1024;
-    if (mb < 1024) return mb.toFixed(1) + " MB";
-    let gb = mb / 1024;
-    return gb.toFixed(2) + " GB";
-  }
-
-  // --- Modal logic ---
-  function showModal(message) {
-    return new Promise((resolve) => {
-      modalMessage.textContent = message;
-      modalOverlay.style.display = "flex";
-
-      function cleanup() {
-        modalConfirm.removeEventListener("click", onConfirm);
-        modalCancel.removeEventListener("click", onCancel);
-        modalOverlay.style.display = "none";
-      }
-      function onConfirm() {
-        cleanup();
-        resolve(true);
-      }
-      function onCancel() {
-        cleanup();
-        resolve(false);
-      }
-      modalConfirm.addEventListener("click", onConfirm);
-      modalCancel.addEventListener("click", onCancel);
-    });
-  }
-
-  // --- WebRTC Setup ---
-  function createPeerConnection(peerId, isInitiator) {
-    const pc = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-    });
-
-    // Data channel for file transfer
-    let dataChannel = null;
-    let receiveBuffer = [];
-    let receivedSize = 0;
-    let fileMeta = null;
-    let receiveCard = null;
-    let receiveCancelRequested = false;
-
-    if (isInitiator) {
-      dataChannel = pc.createDataChannel("file");
-      setupDataChannel(peerId, dataChannel);
-    } else {
-      pc.ondatachannel = (event) => {
-        dataChannel = event.channel;
-        setupDataChannel(peerId, dataChannel);
-      };
-    }
-
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        socket.emit("signal", {
-          to: peerId,
-          from: localSocketId,
-          signal: { candidate: event.candidate }
-        });
-      }
-    };
-
-    // Create offer if initiator
-    if (isInitiator) {
-      pc.createOffer().then(offer => {
-        pc.setLocalDescription(offer);
-        socket.emit("signal", {
-          to: peerId,
-          from: localSocketId,
-          signal: offer
-        });
-      });
-    }
-
-    // Signal handling
-    pc.handleSignal = async (signal) => {
-      if (signal.sdp) {
-        await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
-        if (signal.sdp.type === "offer") {
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-          socket.emit("signal", {
-            to: peerId,
-            from: localSocketId,
-            signal: answer
-          });
+        // Show a toast message
+        function showToast(msg) {
+            const div = document.createElement('div');
+            div.className = 'toast';
+            div.textContent = msg;
+            toastContainer.appendChild(div);
+            setTimeout(() => div.remove(), 3000);
         }
-      } else if (signal.candidate) {
-        try {
-          await pc.addIceCandidate(signal.candidate);
-        } catch (e) {
-          console.warn("Failed to add ICE candidate:", e);
+
+        // Show confirmation modal
+        function showConfirmation(text, onAccept, onReject) {
+            modalText.textContent = text;
+            modal.style.display = 'flex';
+            acceptBtn.onclick = () => { modal.style.display = 'none'; onAccept(); };
+            rejectBtn.onclick = () => { modal.style.display = 'none'; onReject(); };
         }
-      }
-    };
 
-    // Data channel logic
-    function setupDataChannel(peerId, dc) {
-      dc.binaryType = "arraybuffer";
-
-      dc.onopen = () => {
-        toast(`Data channel open with ${peerId}`, "success");
-      };
-
-      dc.onclose = () => {
-        toast(`Data channel closed with ${peerId}`, "error");
-      };
-
-      dc.onerror = (err) => {
-        console.error("DataChannel error:", err);
-      };
-
-      dc.onmessage = async (event) => {
-        const data = event.data;
-        if (typeof data === "string") {
-          // Parse metadata or control messages
-          try {
-            const msg = JSON.parse(data);
-
-            if (msg.type === "file-meta") {
-              // Received file metadata - ask for confirmation
-              if (receiveCancelRequested) return;
-
-              fileMeta = msg;
-              const accept = await showModal(
-                `Receive file "${msg.name}" (${formatBytes(msg.size)}) from peer?`
-              );
-              if (!accept) {
-                dc.send(JSON.stringify({ type: "file-reject" }));
-                fileMeta = null;
-                return;
-              } else {
-                dc.send(JSON.stringify({ type: "file-accept" }));
-
-                // Setup receive card UI
-                receiveBuffer = [];
-                receivedSize = 0;
-                receiveCancelRequested = false;
-                receiveCard = createTransferCard("Receiving", msg.name, msg.size, false);
-
-                // Add cancel button logic
-                receiveCard.cancelBtn.onclick = () => {
-                  receiveCancelRequested = true;
-                  dc.send(JSON.stringify({ type: "file-cancel" }));
-                  removeCard(receiveCard.card);
-                  toast("Reception cancelled.", "info");
-                };
-              }
-            } else if (msg.type === "file-reject") {
-              toast("Peer rejected file transfer.", "error");
-              cleanupSendCard(peerId);
-            } else if (msg.type === "file-accept") {
-              // Start sending chunks
-              sendFileChunks(dc, peerId);
-            } else if (msg.type === "file-cancel") {
-              toast("Peer cancelled the transfer.", "info");
-              cleanupSendCard(peerId);
+        // Join or leave room button logic
+        joinBtn.onclick = () => {
+            if (!roomId) {
+                // Attempt to join
+                const id = roomInput.value.trim();
+                if (!/^\d{4}$/.test(id)) {
+                    alert('Enter a valid 4-digit Room ID');
+                    return;
+                }
+                roomId = id;
+                socket.emit('join-room', { roomId });
+            } else {
+                // Leave the room
+                socket.emit('leave-room', { roomId });
+                cleanupRoom();
             }
-          } catch (e) {
-            console.error("Failed to parse data channel message", e);
-          }
-        } else {
-          // Receiving file chunk
-          if (!fileMeta || receiveCancelRequested) return;
+        };
 
-          receiveBuffer.push(data);
-          receivedSize += data.byteLength;
+        // Clean up after leaving
+        function cleanupRoom() {
+            peers.forEach(id => {
+                if (peerConnections[id]) peerConnections[id].close();
+            });
+            Object.keys(peerConnections).forEach(id => delete peerConnections[id]);
+            Object.keys(dataChannels).forEach(id => delete dataChannels[id]);
+            peers.clear();
+            selectedFile = null;
+            acceptedPeers = [];
+            sendInProgress = false;
+            fileInput.value = null;
+            fileInfo.textContent = '';
+            currentRoomSpan.textContent = 'None';
+            peerCountSpan.textContent = '0';
+            fileCard.style.display = 'none';
+            sendButton.disabled = true;
+            joinBtn.textContent = 'Join Room';
+            roomId = null;
+            transferContainer.innerHTML = '';
+            showToast('Left the room');
+        }
 
-          updateProgress(receiveCard.progressBar, receivedSize / fileMeta.size);
+        // Socket.IO event handlers
+        socket.on('room-created', () => {
+            // First user (host) created the room
+            fileCard.style.display = 'block';
+            currentRoomSpan.textContent = roomId;
+            joinBtn.textContent = 'Exit Room';
+            showToast('Room created. You are host.');
+        });
+        socket.on('all-users', (existingPeers) => {
+            // Joined existing room, get list of other peers
+            fileCard.style.display = 'block';
+            currentRoomSpan.textContent = roomId;
+            joinBtn.textContent = 'Exit Room';
+            showToast('Joined room ' + roomId);
+            existingPeers.forEach(peerId => {
+                createPeerConnection(peerId, true);
+                peers.add(peerId);
+            });
+            peerCountSpan.textContent = peers.size;
+        });
+        socket.on('user-joined', (peerId) => {
+            // New peer joined room
+            createPeerConnection(peerId, false);
+            peers.add(peerId);
+            peerCountSpan.textContent = peers.size;
+            showToast('Peer joined: ' + peerId);
+        });
+        socket.on('user-left', (peerId) => {
+            // A peer left
+            if (peerConnections[peerId]) peerConnections[peerId].close();
+            delete peerConnections[peerId];
+            peers.delete(peerId);
+            delete dataChannels[peerId];
+            peerCountSpan.textContent = peers.size;
+            showToast('Peer left: ' + peerId);
+        });
 
-          if (receivedSize >= fileMeta.size) {
-            // Finished receiving
-            const receivedBlob = new Blob(receiveBuffer);
-            receiveCard.progressBar.style.width = "100%";
-            receiveCard.body.textContent = `Received "${fileMeta.name}" (${formatBytes(fileMeta.size)})`;
+        // Relay of WebRTC signaling data (offer/answer/ICE) via Socket.IO
+        socket.on('signal', async (data) => {
+            const { from, type, sdp, candidate } = data;
+            let pc = peerConnections[from];
+            if (!pc) {
+                // Create connection if not existing
+                createPeerConnection(from, false);
+                pc = peerConnections[from];
+                peers.add(from);
+                peerCountSpan.textContent = peers.size;
+            }
+            if (type === 'offer') {
+                await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                socket.emit('signal', { to: from, type: 'answer', sdp: pc.localDescription });
+            } else if (type === 'answer') {
+                await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+            } else if (type === 'ice') {
+                if (candidate) {
+                    try { await pc.addIceCandidate(candidate); }
+                    catch (e) { console.error('ICE candidate failed', e); }
+                }
+            }
+        });
 
-            // Add download button
-            receiveCard.downloadBtn = document.createElement("button");
-            receiveCard.downloadBtn.textContent = "Download";
-            receiveCard.downloadBtn.className = "btn download";
-            receiveCard.downloadBtn.onclick = () => {
-              const url = URL.createObjectURL(receivedBlob);
-              const a = document.createElement("a");
-              a.href = url;
-              a.download = fileMeta.name;
-              a.click();
-              URL.revokeObjectURL(url);
+        // Create an RTCPeerConnection and (if initiator) a DataChannel
+        function createPeerConnection(peerId, initiator) {
+            const pc = new RTCPeerConnection({
+                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+            });
+            peerConnections[peerId] = pc;
+
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    socket.emit('signal', { to: peerId, type: 'ice', candidate: event.candidate });
+                }
             };
-            receiveCard.buttonsDiv.appendChild(receiveCard.downloadBtn);
 
-            // Remove cancel button
-            if (receiveCard.cancelBtn) {
-              receiveCard.cancelBtn.remove();
+            if (initiator) {
+                // Outgoing connection: create data channel and offer
+                const dc = pc.createDataChannel('fileChannel');
+                setupDataChannel(peerId, dc);
+                pc.onnegotiationneeded = async () => {
+                    const offer = await pc.createOffer();
+                    await pc.setLocalDescription(offer);
+                    socket.emit('signal', { to: peerId, type: 'offer', sdp: pc.localDescription });
+                };
+            } else {
+                // Incoming connection: wait for data channel
+                pc.ondatachannel = (event) => {
+                    setupDataChannel(peerId, event.channel);
+                };
             }
-
-            // Clear buffer
-            receiveBuffer = [];
-            receivedSize = 0;
-            fileMeta = null;
-          }
         }
-      };
-    }
 
-    return {
-      pc,
-      dataChannel
-    };
-  }
-
-  function updateProgress(progressBar, fraction) {
-    const percent = Math.min(100, Math.floor(fraction * 100));
-    progressBar.style.width = percent + "%";
-  }
-
-  function createTransferCard(title, fileName, fileSize, isSending) {
-    const card = document.createElement("div");
-    card.className = "card " + (isSending ? "sending" : "receiving");
-
-    const header = document.createElement("div");
-    header.className = "card-header";
-    header.textContent = title;
-
-    const body = document.createElement("div");
-    body.className = "card-body";
-    body.textContent = `${fileName} (${formatBytes(fileSize)})`;
-
-    const progressContainer = document.createElement("div");
-    progressContainer.className = "progress-container";
-
-    const progressBar = document.createElement("div");
-    progressBar.className = "progress-bar";
-    progressContainer.appendChild(progressBar);
-
-    const buttonsDiv = document.createElement("div");
-    buttonsDiv.className = "card-buttons";
-
-    const cancelBtn = document.createElement("button");
-    cancelBtn.className = "btn cancel";
-    cancelBtn.textContent = "Cancel";
-
-    buttonsDiv.appendChild(cancelBtn);
-
-    card.appendChild(header);
-    card.appendChild(body);
-    card.appendChild(progressContainer);
-    card.appendChild(buttonsDiv);
-
-    transferCards.appendChild(card);
-
-    return { card, progressBar, cancelBtn, body, buttonsDiv };
-  }
-
-  // Sending logic
-  let sendCards = new Map(); // peerId -> send card
-  let sendCancelFlags = new Map(); // peerId -> boolean
-
-  async function sendFileChunks(dc, peerId) {
-    if (!fileToSend) return;
-    if (!dc || dc.readyState !== "open") return;
-
-    const CHUNK_SIZE = 16 * 1024; // 16 KB per chunk
-    let offset = 0;
-
-    let sendCard = sendCards.get(peerId);
-    if (!sendCard) {
-      sendCard = createTransferCard("Sending", fileToSend.name, fileToSend.size, true);
-      sendCards.set(peerId, sendCard);
-
-      sendCard.cancelBtn.onclick = () => {
-        sendCancelFlags.set(peerId, true);
-        sendCard.body.textContent = "Transfer cancelled.";
-        sendCard.cancelBtn.disabled = true;
-        toast("Transfer cancelled to peer " + peerId, "info");
-      };
-    }
-
-    while (offset < fileToSend.size) {
-      if (sendCancelFlags.get(peerId)) break;
-
-      const chunk = fileToSend.slice(offset, offset + CHUNK_SIZE);
-      const arrayBuffer = await chunk.arrayBuffer();
-
-      try {
-        dc.send(arrayBuffer);
-      } catch (e) {
-        toast("Send error: " + e.message, "error");
-        break;
-      }
-
-      offset += CHUNK_SIZE;
-      updateProgress(sendCard.progressBar, offset / fileToSend.size);
-      sendCard.body.textContent = `Sending "${fileToSend.name}" (${formatBytes(offset)} / ${formatBytes(fileToSend.size)})`;
-      await new Promise(r => setTimeout(r, 10)); // small delay to prevent congestion
-    }
-
-    if (offset >= fileToSend.size) {
-      sendCard.body.textContent = `Sent "${fileToSend.name}" successfully.`;
-      sendCard.cancelBtn.remove();
-      sendCancelFlags.delete(peerId);
-    }
-  }
-
-  // Clean up send card on error or cancel
-  function cleanupSendCard(peerId) {
-    const card = sendCards.get(peerId);
-    if (card) {
-      card.body.textContent = "Transfer cancelled or failed.";
-      card.cancelBtn.disabled = true;
-      sendCancelFlags.delete(peerId);
-    }
-  }
-
-  function removeCard(card) {
-    card.remove();
-  }
-
-  // --- Socket.IO event handlers ---
-
-  socket.on("connect", () => {
-    localSocketId = socket.id;
-  });
-
-  socket.on("peer-count", (count) => {
-    peerCountSpan.textContent = count;
-  });
-
-  socket.on("new-peer", (peerId) => {
-    if (joined && !connectedPeers.has(peerId)) {
-      // Initiate WebRTC connection with new peer as initiator (host does this)
-      const pcObj = createPeerConnection(peerId, true);
-      connectedPeers.set(peerId, pcObj);
-    }
-  });
-
-  socket.on("peer-left", (peerId) => {
-    toast(`Peer ${peerId} left the room.`, "info");
-    if (connectedPeers.has(peerId)) {
-      const pcObj = connectedPeers.get(peerId);
-      pcObj.pc.close();
-      connectedPeers.delete(peerId);
-    }
-    // Remove any send cards related to that peer
-    if (sendCards.has(peerId)) {
-      removeCard(sendCards.get(peerId).card);
-      sendCards.delete(peerId);
-    }
-  });
-
-  socket.on("signal", async (data) => {
-    const { from, signal } = data;
-
-    if (!connectedPeers.has(from)) {
-      // Incoming connection, not initiator
-      const pcObj = createPeerConnection(from, false);
-      connectedPeers.set(from, pcObj);
-    }
-
-    const pcObj = connectedPeers.get(from);
-    await pcObj.handleSignal(signal);
-  });
-
-  // --- UI logic ---
-  joinRoomBtn.onclick = async () => {
-    if (!joined) {
-      const id = roomIdInput.value.trim();
-      if (!/^\d{4}$/.test(id)) {
-        toast("Please enter a valid 4-digit Room ID.", "error");
-        return;
-      }
-      socket.emit("join-room", id, (response) => {
-        if (!response.success) {
-          toast(response.error || "Failed to join room.", "error");
-          return;
+        // Set up RTCDataChannel event handlers
+        function setupDataChannel(peerId, dc) {
+            dataChannels[peerId] = dc;
+            dc.binaryType = 'arraybuffer';
+            dc.onopen = () => { console.log('Data channel open with', peerId); };
+            dc.onmessage = (event) => { onDataChannelMessage(peerId, event.data); };
+            dc.onclose = () => { console.log('Data channel closed with', peerId); };
         }
-        roomId = id;
-        isHost = response.isHost;
-        joined = true;
 
-        roomIdInput.disabled = true;
-        joinRoomBtn.textContent = "Exit Room";
+        // Handle file input selection
+        fileInput.onchange = () => {
+            const file = fileInput.files[0];
+            if (file) {
+                selectedFile = file;
+                const sizeMB = (file.size/(1024*1024)).toFixed(2);
+                const sizeText = file.size > 1024*1024 ? `${sizeMB} MB` : `${(file.size/1024).toFixed(2)} KB`;
+                fileInfo.textContent = `Selected: ${file.name} (${sizeText})`;
+                sendButton.disabled = false;
+            }
+        };
 
-        roomInfo.style.display = "block";
-        displayRoomId.textContent = roomId;
-        peerCountSpan.textContent = response.peerCount;
+        // Send file metadata to peers
+        sendButton.onclick = () => {
+            if (!selectedFile) return;
+            acceptedPeers = [];
+            sendInProgress = false;
+            const name = selectedFile.name, size = selectedFile.size;
+            peers.forEach(peerId => {
+                // Offer file to each peer
+                const message = { type: 'file-meta', name, size };
+                dataChannels[peerId].send(JSON.stringify(message));
+                createTransferCard('sending', peerId, name, size);
+            });
+        };
 
-        document.querySelector(".file-selector").style.display = "flex";
-        sendBtn.disabled = true;
+        // Handle incoming data on data channel (string or binary)
+        function onDataChannelMessage(peerId, data) {
+            if (typeof data === 'string') {
+                const msg = JSON.parse(data);
+                if (msg.type === 'file-meta') {
+                    // A peer offers a file
+                    const meta = msg;
+                    showConfirmation(
+                        `Receive file "${meta.name}" (${(meta.size/1024).toFixed(1)} KB) from peer?`,
+                        () => {
+                            // Accept: notify sender and prepare UI
+                            dataChannels[peerId].send(JSON.stringify({ type: 'file-accept' }));
+                            createTransferCard('receiving', peerId, meta.name, meta.size);
+                            receiveBuffers[peerId] = { data: [], received: 0, meta: meta };
+                        },
+                        () => {
+                            // Reject
+                            dataChannels[peerId].send(JSON.stringify({ type: 'file-reject' }));
+                        }
+                    );
+                } else if (msg.type === 'file-accept') {
+                    // Peer accepted our file offer
+                    if (!acceptedPeers.includes(peerId)) acceptedPeers.push(peerId);
+                    if (!sendInProgress) {
+                        sendInProgress = true;
+                        startFileTransfer();
+                    }
+                } else if (msg.type === 'file-reject') {
+                    // Peer rejected
+                    showToast('Peer ' + peerId + ' rejected the file.');
+                    removeTransferCard('sending', peerId);
+                } else if (msg.type === 'file-cancel') {
+                    // Peer canceled
+                    showToast('Peer ' + peerId + ' cancelled the transfer.');
+                    removeTransferCard('receiving', peerId);
+                }
+            } else {
+                // Received a file chunk (binary data)
+                receiveFileChunk(peerId, data);
+            }
+        }
 
-        toast(`Joined room ${roomId} as ${isHost ? "host" : "peer"}`, "success");
-      });
-    } else {
-      // Exit room: clean everything
-      leaveRoom();
-    }
-  };
+        // Create a file transfer card (sending or receiving) with progress bar
+        function createTransferCard(mode, peerId, name, size) {
+            const card = document.createElement('div');
+            card.className = 'card transfer-card';
+            card.id = `${mode}-card-${peerId}`;
+            let html = `<h3>${mode === 'sending' ? 'Sending to' : 'Receiving from'} ${peerId}</h3>`;
+            html += `<div>File: ${name}</div>`;
+            const sizeText = size > 1024*1024 ? `${(size/(1024*1024)).toFixed(2)} MB` : `${(size/1024).toFixed(2)} KB`;
+            html += `<div>Size: ${sizeText}</div>`;
+            html += `<div class="progress-container"><div class="progress-bar" id="${mode}-bar-${peerId}"></div></div>`;
+            html += `<div id="${mode}-percent-${peerId}">0%</div>`;
+            if (mode === 'receiving') {
+                html += `<button id="download-${peerId}" disabled>Download</button>`;
+            }
+            html += `<button id="cancel-${mode}-${peerId}">Cancel</button>`;
+            card.innerHTML = html;
+            transferContainer.appendChild(card);
 
-  function leaveRoom() {
-    connectedPeers.forEach(({ pc, dataChannel }) => {
-      pc.close();
-    });
-    connectedPeers.clear();
+            // Cancel button
+            const cancelBtn = document.getElementById(`cancel-${mode}-${peerId}`);
+            cancelBtn.onclick = () => {
+                if (mode === 'sending') {
+                    acceptedPeers = acceptedPeers.filter(id => id !== peerId);
+                    dataChannels[peerId].send(JSON.stringify({ type: 'file-cancel' }));
+                    removeTransferCard('sending', peerId);
+                } else {
+                    dataChannels[peerId].send(JSON.stringify({ type: 'file-cancel' }));
+                    removeTransferCard('receiving', peerId);
+                }
+            };
+        }
 
-    // Clear send cards
-    sendCards.forEach(card => {
-      removeCard(card.card);
-    });
-    sendCards.clear();
-    sendCancelFlags.clear();
+        function removeTransferCard(mode, peerId) {
+            const card = document.getElementById(`${mode}-card-${peerId}`);
+            if (card) card.remove();
+        }
 
-    // Clear receive cards
-    transferCards.innerHTML = "";
+        // Read file in chunks and send to accepted peers
+        async function startFileTransfer() {
+            const file = selectedFile;
+            let offset = 0;
+            const size = file.size;
+            while (offset < size && acceptedPeers.length > 0) {
+                const chunk = file.slice(offset, offset + chunkSize);
+                const buffer = await chunk.arrayBuffer();
+                acceptedPeers.forEach(peerId => {
+                    if (dataChannels[peerId].readyState === 'open') {
+                        dataChannels[peerId].send(buffer);
+                    }
+                });
+                offset += buffer.byteLength;
+                const percent = Math.round((offset/size)*100);
+                acceptedPeers.forEach(peerId => {
+                    const bar = document.getElementById(`sending-bar-${peerId}`);
+                    const pct = document.getElementById(`sending-percent-${peerId}`);
+                    if (bar) bar.style.width = percent + '%';
+                    if (pct) pct.textContent = percent + '%';
+                });
+            }
+            // Done
+            acceptedPeers.forEach(peerId => {
+                showToast('File sent to ' + peerId);
+                removeTransferCard('sending', peerId);
+            });
+        }
 
-    roomId = null;
-    isHost = false;
-    joined = false;
+        // Buffer for incoming file chunks
+        const receiveBuffers = {};
 
-    roomIdInput.disabled = false;
-    joinRoomBtn.textContent = "Join Room";
-
-    roomInfo.style.display = "none";
-    fileInput.value = "";
-    fileInfo.textContent = "";
-    sendBtn.disabled = true;
-    document.querySelector(".file-selector").style.display = "none";
-
-    toast("Left the room.", "info");
-  }
-
-  fileInput.onchange = () => {
-    if (fileInput.files.length === 0) {
-      fileInfo.textContent = "";
-      sendBtn.disabled = true;
-      fileToSend = null;
-      return;
-    }
-    const file = fileInput.files[0];
-    fileToSend = file;
-    fileInfo.textContent = `${file.name} (${formatBytes(file.size)})`;
-    sendBtn.disabled = connectedPeers.size === 0;
-  };
-
-  sendBtn.onclick = () => {
-    if (!fileToSend) return;
-    if (connectedPeers.size === 0) {
-      toast("No peers connected to send file.", "error");
-      return;
-    }
-    toast(`Starting file transfer to ${connectedPeers.size} peer(s)`, "info");
-
-    connectedPeers.forEach(({ dataChannel }, peerId) => {
-      if (!dataChannel || dataChannel.readyState !== "open") {
-        toast(`Data channel to peer ${peerId} not open`, "error");
-        return;
-      }
-      // Send file meta to peer
-      sendCancelFlags.set(peerId, false);
-      dataChannel.send(JSON.stringify({
-        type: "file-meta",
-        name: fileToSend.name,
-        size: fileToSend.size,
-        lastModified: fileToSend.lastModified,
-        typeMime: fileToSend.type
-      }));
-    });
-  };
-})();
-</script>
+        function receiveFileChunk(peerId, chunk) {
+            if (!receiveBuffers[peerId]) return;
+            receiveBuffers[peerId].data.push(chunk);
+            receiveBuffers[peerId].received += chunk.byteLength;
+            const { meta, received } = receiveBuffers[peerId];
+            const percent = Math.round((received/meta.size)*100);
+            const bar = document.getElementById(`receiving-bar-${peerId}`);
+            const pct = document.getElementById(`receiving-percent-${peerId}`);
+            if (bar) bar.style.width = percent + '%';
+            if (pct) pct.textContent = percent + '%';
+            if (received === meta.size) {
+                // File fully received
+                const blob = new Blob(receiveBuffers[peerId].data);
+                const downloadBtn = document.getElementById(`download-${peerId}`);
+                downloadBtn.disabled = false;
+                downloadBtn.onclick = () => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url; a.download = meta.name;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                };
+                showToast('File received from ' + peerId);
+                delete receiveBuffers[peerId];
+            }
+        }
+    </script>
 </body>
 </html>
