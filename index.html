@@ -5,44 +5,32 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>P2P File Sharing</title>
   <style>
-    body { margin: 0; font-family: sans-serif; background: #f0f2f5; }
-    header { padding: 1em; background: #222; color: #fff; text-align: center; }
-    #main { padding: 1em; display: flex; flex-direction: column; gap: 1em; }
-    #peers, #transfers { display: flex; flex-wrap: wrap; gap: 1em; }
-    .card {
-      background: white; border-radius: 8px; padding: 1em;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1); width: 200px;
-    }
-    .card button { margin-top: 0.5em; }
+    body { font-family: Arial, sans-serif; background: #f0f0f0; margin: 0; padding: 20px; }
+    h1 { text-align: center; }
+    #peers, #transfers { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+    .card { background: #fff; padding: 10px; border-radius: 5px; box-shadow: 0 0 5px rgba(0,0,0,0.1); width: 200px; }
+    .card button { margin-top: 10px; }
     .offline { opacity: 0.5; }
-    #username { margin-bottom: 1em; }
-    @media (max-width: 600px) {
-      .card { width: 100%; }
-    }
+    #fileInput { margin-top: 20px; }
   </style>
 </head>
 <body>
-  <header>
-    <h1>P2P File Sharing</h1>
-  </header>
-  <main id="main">
-    <div>
-      <input id="fileInput" type="file" />
-    </div>
-    <section id="peers"></section>
-    <section id="transfers"></section>
-  </main>
+  <h1>P2P File Sharing</h1>
+  <input type="file" id="fileInput" />
+  <div id="peers"></div>
+  <div id="transfers"></div>
 
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/simple-peer@9/simplepeer.min.js"></script>
   <script>
-    const socket = io('https://p2p-share-7wvh.onrender.com'); // replace with your Render backend
+    const socket = io('https://your-backend-url.com'); // Replace with your backend URL
     const peersEl = document.getElementById('peers');
     const transfersEl = document.getElementById('transfers');
     const fileInput = document.getElementById('fileInput');
 
     const peers = {};
     const connections = {};
-    const myUsername = generateUsername();
+    const myUsername = 'User-' + Math.floor(Math.random() * 1000);
 
     socket.emit('register', myUsername);
 
@@ -53,7 +41,7 @@
         const card = document.createElement('div');
         card.className = 'card' + (peer.online ? '' : ' offline');
         card.innerHTML = `<strong>${peer.username}</strong><br/>
-          <button onclick="sendFileTo('${peer.id}')">Send File</button>`;
+          <button onclick="connectToPeer('${peer.id}')">Connect</button>`;
         peersEl.appendChild(card);
       });
     });
@@ -62,94 +50,52 @@
       if (!connections[fromId]) {
         createConnection(fromId, false);
       }
-      await connections[fromId].signal(signal);
+      connections[fromId].signal(signal);
     });
 
-    function createConnection(peerId, isInitiator) {
-      const conn = new SimplePeer({ initiator: isInitiator, trickle: false });
+    function createConnection(peerId, initiator) {
+      const conn = new SimplePeer({ initiator, trickle: false });
       connections[peerId] = conn;
 
       conn.on('signal', signal => {
         socket.emit('signal', { targetId: peerId, signal });
       });
 
-      conn.on('data', data => receiveChunk(peerId, data));
-      conn.on('connect', () => console.log(`Connected with ${peerId}`));
-      conn.on('close', () => console.log(`Disconnected from ${peerId}`));
+      conn.on('connect', () => {
+        console.log(`Connected to ${peerId}`);
+      });
+
+      conn.on('data', data => {
+        const blob = new Blob([data]);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'received_file';
+        a.textContent = 'Download received file';
+        transfersEl.appendChild(a);
+      });
+
+      conn.on('error', err => console.error(err));
     }
 
-    function sendFileTo(peerId) {
-      const file = fileInput.files[0];
-      if (!file || !connections[peerId]) return;
-
-      const reader = new FileReader();
-      reader.onload = () => {
-        const buffer = new Uint8Array(reader.result);
-        const chunkSize = 64 * 1024;
-        let offset = 0;
-        const transferCard = createTransferCard(file.name, file.size, true);
-
-        const sendNext = () => {
-          if (offset < buffer.length) {
-            const chunk = buffer.slice(offset, offset + chunkSize);
-            connections[peerId].send(chunk);
-            offset += chunkSize;
-            updateProgress(transferCard, offset, file.size);
-            setTimeout(sendNext, 0);
-          } else {
-            console.log('File sent');
-          }
-        };
-
-        sendNext();
-      };
-      reader.readAsArrayBuffer(file);
-    }
-
-    const receiving = {};
-
-    function receiveChunk(peerId, chunk) {
-      if (!receiving[peerId]) {
-        receiving[peerId] = { chunks: [], size: 0, name: `File_from_${peerId}` };
-        receiving[peerId].card = createTransferCard(receiving[peerId].name, 0, false);
+    function connectToPeer(peerId) {
+      if (!connections[peerId]) {
+        createConnection(peerId, true);
       }
-      const rec = receiving[peerId];
-      rec.chunks.push(chunk);
-      rec.size += chunk.byteLength;
-      updateProgress(rec.card, rec.size, null);
     }
 
-    function updateProgress(card, loaded, total) {
-      card.querySelector('.progress').textContent = total
-        ? `${((loaded / total) * 100).toFixed(1)}%`
-        : `${(loaded / 1024).toFixed(1)} KB received`;
-    }
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      if (!file) return;
 
-    function createTransferCard(name, size, sending) {
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.innerHTML = `
-        <div><strong>${name}</strong></div>
-        <div class="progress">0%</div>
-        <button class="cancel">Cancel</button>
-      `;
-      card.querySelector('.cancel').onclick = () => card.remove();
-      transfersEl.appendChild(card);
-      return card;
-    }
-
-    function generateUsername() {
-      const words = ['fox', 'owl', 'eagle', 'cat', 'wolf', 'lion'];
-      const adj = ['fast', 'sly', 'wild', 'brave', 'calm'];
-      return `${adj[Math.floor(Math.random() * adj.length)]}-${words[Math.floor(Math.random() * words.length)]}`;
-    }
-
-    window.sendFileTo = sendFileTo;
-
-    // Load SimplePeer
-    const sp = document.createElement('script');
-    sp.src = 'https://cdn.jsdelivr.net/npm/simple-peer@9/simplepeer.min.js';
-    document.body.appendChild(sp);
+      Object.values(connections).forEach(conn => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          conn.send(reader.result);
+        };
+        reader.readAsArrayBuffer(file);
+      });
+    });
   </script>
 </body>
 </html>
