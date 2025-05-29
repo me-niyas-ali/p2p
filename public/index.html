@@ -160,56 +160,62 @@
  </style>
  <style>
   #toast-container {
-    position: fixed;
-    bottom: 30px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    z-index: 9999;
+   position: fixed;
+   bottom: 30px;
+   left: 50%;
+   transform: translateX(-50%);
+   display: flex;
+   flex-direction: column;
+   gap: 10px;
+   z-index: 9999;
   }
 
   .toast {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-width: 40%;
-    max-width: 80%;
-    background-color: #333;
-    color: white;
-    padding: 10px 12px;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    font-size: 12px;
-    opacity: 0;
-    transform: translateY(20px);
-    animation: slideIn 0.4s ease forwards, fadeOut 0.5s ease forwards 3s;
+   display: flex;
+   align-items: center;
+   gap: 10px;
+   min-width: 40%;
+   max-width: 80%;
+   background-color: #333;
+   color: white;
+   padding: 10px 12px;
+   border-radius: 8px;
+   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+   font-size: 12px;
+   opacity: 0;
+   transform: translateY(20px);
+   animation: slideIn 0.4s ease forwards, fadeOut 0.5s ease forwards 3s;
   }
 
-  .toast.success { background-color: #28a745; }
-  .toast.error   { background-color: #dc3545; }
-  .toast.info    { background-color: #007bff; }
+  .toast.success {
+   background-color: #28a745;
+  }
+  .toast.error {
+   background-color: #dc3545;
+  }
+  .toast.info {
+   background-color: #007bff;
+  }
 
   .toast i {
-    font-style: normal;
-    font-size: 16px;
+   font-style: normal;
+   font-size: 16px;
   }
 
-  @keyframes slideIn {
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+@keyframes slideIn {
+   to {
+    opacity: 1;
+    transform: translateY(0);
+   }
   }
 
-  @keyframes fadeOut {
-    to {
-      opacity: 0;
-      transform: translateY(-20px);
-    }
+@keyframes fadeOut {
+   to {
+    opacity: 0;
+    transform: translateY(-20px);
+   }
   }
-</style>
+ </style>
 
 </head>
 <body>
@@ -325,16 +331,13 @@
   });
 
   // 🔔 Toast notifications
-  socket.on('user-joined-toast', ({
-   message
-  }) => {
-   showToast(message);
+
+  socket.on('user-joined-toast', () => {
+   showToast("A user joined the room");
   });
 
-  socket.on('user-left-toast', ({
-   message
-  }) => {
-   showToast(message);
+  socket.on('user-left-toast', () => {
+   showToast("A user left the room");
   });
 
   function createFileCard(displayArea, metadata, isSender) {
@@ -390,7 +393,6 @@
    }
 
    sendBtn.disabled = true;
-
    sendFile = fileInput.files[0];
    sendOffset = 0;
    sendingCancelled = false;
@@ -531,27 +533,27 @@
  </script>
  <script>
   function showToast(message, type = 'info') {
-    const container = document.getElementById('toast-container');
+   const container = document.getElementById('toast-container');
 
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
+   const toast = document.createElement('div');
+   toast.className = `toast ${type}`;
 
-    // Icon based on type
-    const icons = {
-      success: '✔️',
-      error: '❌',
-      info: 'ℹ️'
-    };
+   // Icon based on type
+   const icons = {
+    success: '✔️',
+    error: '❌',
+    info: 'ℹ️'
+   };
 
-    toast.innerHTML = `<i>${icons[type] || 'ℹ️'}</i> <span> ${message}</span>`;
-    container.appendChild(toast);
+   toast.innerHTML = `<i>${icons[type] || 'ℹ️'}</i> <span> ${message}</span>`;
+   container.appendChild(toast);
 
-    // Remove after animation
-    setTimeout(() => {
-      toast.remove();
-    }, 4000); // match fadeOut timing
+   // Remove after animation
+   setTimeout(() => {
+    toast.remove();
+   }, 4000); // match fadeOut timing
   }
-</script>
+ </script>
 
 
 </body>
