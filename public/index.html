@@ -505,6 +505,8 @@
     ui.progressBar.style.width = `${(receivedSize / metadata.size) * 100}%`;
 
     if (receivedSize >= metadata.size) {
+     ui.status.textContent = `${formatBytes(receivedSize)}`;
+     ui.status.style.color = '#22c55e';
      ui.progressBar.parentElement.style.display = 'none';
      ui.cancelBtn.remove();
      showToast("File received", "success");
