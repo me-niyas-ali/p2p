@@ -159,28 +159,57 @@
   }
  </style>
  <style>
-  #toast {
-   position: fixed;
-   bottom: 30px;
-   left: 50%;
-   transform: translateX(-50%);
-   background-color: #333;
-   color: white;
-   padding: 12px 24px;
-   border-radius: 8px;
-   font-size: 16px;
-   opacity: 0;
-   pointer-events: none;
-   transition: opacity 0.4s ease, bottom 0.4s ease;
-   z-index: 9999;
+  #toast-container {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 9999;
   }
 
-  #toast.show {
-   opacity: 1;
-   bottom: 50px;
-   pointer-events: auto;
+  .toast {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 240px;
+    max-width: 320px;
+    background-color: #333;
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    font-size: 14px;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: slideIn 0.4s ease forwards, fadeOut 0.5s ease forwards 3s;
   }
- </style>
+
+  .toast.success { background-color: #28a745; }
+  .toast.error   { background-color: #dc3545; }
+  .toast.info    { background-color: #007bff; }
+
+  .toast i {
+    font-style: normal;
+    font-size: 18px;
+  }
+
+  @keyframes slideIn {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fadeOut {
+    to {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+  }
+</style>
 
 </head>
 <body>
@@ -207,7 +236,7 @@
    <div id="sendFilesDisplay" class="file-display-area"></div>
    <div id="receivedFilesDisplay" class="file-display-area"></div>
   </div>
-  <div id="toast"></div>
+  <div id="toast-container"></div>
  </center>
 
  <script src="/socket.io/socket.io.js"></script>
@@ -235,7 +264,7 @@
   joinBtn.onclick = () => {
    if (!joined) {
     roomId = roomIdInput.value.trim();
-    if (roomId.length !== 4) return showToast("Enter a 4-digit room code");
+    if (roomId.length !== 4) return showToast("Enter a 4-digit room code", "info");
     socket.emit("join-room", roomId);
    } else {
     socket.emit("leave-room", roomId);
@@ -247,9 +276,9 @@
    resetState();
 
    if (reason === "io server disconnect") {
-    showToast("Disconnected by server");
+    showToast("Disconnected by server", "error");
    } else if (reason === "io client disconnect") {
-    showToast("Disconnected from client (tab/browser closed)");
+    showToast("Disconnected from client (tab/browser closed)", "error");
    } else {
     showToast(`Disconnected: ${reason}`);
    }
@@ -274,7 +303,7 @@
    sendOffset = 0;
    sendFile = null;
    currentTransferId = null;
-   showToast("Left from room");
+   showToast("Left from room", "error");
    joinBtn.textContent = "Join Room";
    joinBtn.classList.remove("bg-error");
    roomDisplay.textContent = "- - - -";
@@ -287,7 +316,7 @@
    roomDisplay.textContent = data.roomId;
    deviceDisplay.textContent = data.devices;
    joinBtn.textContent = "Exit Room";
-   showToast("Joined a room");
+   showToast("Joined a room", "success");
    joinBtn.classList.add("bg-error");
   });
 
@@ -356,7 +385,7 @@
 
   sendBtn.onclick = () => {
    if (!fileInput.files.length || !joined) {
-    showToast("Join room and select file first");
+    showToast("Join room and select file first", "info");
     return;
    }
 
@@ -393,7 +422,7 @@
     sendFileReader = null;
     sendOffset = sendFile.size;
     sendFilesDisplay.removeChild(ui.card);
-    showToast("Transfer cancelled");
+    showToast("Transfer cancelled", "error");
     sendBtn.disabled = false;
    };
 
@@ -418,7 +447,7 @@
     if (sendOffset < sendFile.size) sendChunk();
     else {
      ui.status.textContent = 'Upload complete';
-     showToast("Upload completed");
+     showToast("Upload completed", "success");
      ui.status.style.color = '#22c55e';
      sendBtn.disabled = false;
      ui.cancelBtn.remove();
@@ -474,7 +503,7 @@
      ui.status.style.color = '#22c55e';
      ui.progressBar.parentElement.style.display = 'none';
      ui.cancelBtn.remove();
-     showToast("File received");
+     showToast("File received", "success");
      ui.downloadBtn.style.display = 'block';
     }
    });
@@ -491,7 +520,7 @@
 
       if (status) {
        status.textContent = 'Cancelled by sender';
-       showToast("Cancelled by sender");
+       showToast("Cancelled by sender", "error");
        status.style.color = '#ef4444';
       }
       if (progressBar) {
@@ -503,19 +532,29 @@
   });
  </script>
  <script>
-  let toastTimeout;
+  function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
 
-  function showToast(message) {
-   const toast = document.getElementById('toast');
-   toast.textContent = message;
-   toast.classList.add('show');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
 
-   clearTimeout(toastTimeout);
-   toastTimeout = setTimeout(() => {
-    toast.classList.remove('show');
-   }, 3000);
+    // Icon based on type
+    const icons = {
+      success: '✔️',
+      error: '❌',
+      info: 'ℹ️'
+    };
+
+    toast.innerHTML = `<i>${icons[type] || 'ℹ️'}</i> <span>${message}</span>`;
+    container.appendChild(toast);
+
+    // Remove after animation
+    setTimeout(() => {
+      toast.remove();
+    }, 3500); // match fadeOut timing
   }
- </script>
+</script>
+
 
 </body>
 </html>
