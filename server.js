@@ -1,4 +1,3 @@
-// server.js
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -6,67 +5,59 @@ const { Server } = require("socket.io");
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: "*" }
+  cors: {
+    origin: "*", // adjust to your front-end domain if needed
+    methods: ["GET", "POST"]
+  }
 });
 
-const rooms = {}; // roomId -> { sockets: Set, host: socketId }
+const rooms = new Map();
 
 io.on("connection", (socket) => {
   socket.on("join-room", (roomId, callback) => {
-    roomId = roomId.trim();
     if (!/^\d{4}$/.test(roomId)) {
-      callback({ success: false, error: "Room ID must be 4 digits." });
+      callback({ success: false, error: "Invalid room ID" });
       return;
     }
 
     socket.join(roomId);
-    if (!rooms[roomId]) {
-      rooms[roomId] = { sockets: new Set(), host: socket.id };
-    }
 
-    rooms[roomId].sockets.add(socket.id);
+    // Track room members
+    if (!rooms.has(roomId)) rooms.set(roomId, new Set());
+    const roomSet = rooms.get(roomId);
+    roomSet.add(socket.id);
 
-    const isHost = rooms[roomId].host === socket.id;
-    // Notify this socket of success, role and current peers count
-    callback({
-      success: true,
-      isHost,
-      peerCount: rooms[roomId].sockets.size
-    });
+    // Inform about peer count
+    const peerCount = roomSet.size;
 
-    // Notify others in room about new peer count
-    io.to(roomId).emit("peer-count", rooms[roomId].sockets.size);
+    // Host is the first to join
+    const isHost = peerCount === 1;
 
-    // Let others know someone joined (for signaling)
+    // Notify existing peers about the new peer
     socket.to(roomId).emit("new-peer", socket.id);
 
-    // For WebRTC signaling - relay signals
-    socket.on("signal", (data) => {
-      // data: { to: socketId, from: socketId, signal: signalingData }
-      io.to(data.to).emit("signal", data);
+    // Send current peer count to room
+    io.in(roomId).emit("peer-count", peerCount);
+
+    callback({ success: true, isHost, peerCount });
+
+    // On disconnect
+    socket.on("disconnect", () => {
+      if (rooms.has(roomId)) {
+        const set = rooms.get(roomId);
+        set.delete(socket.id);
+        io.in(roomId).emit("peer-left", socket.id);
+        io.in(roomId).emit("peer-count", set.size);
+        if (set.size === 0) {
+          rooms.delete(roomId);
+        }
+      }
     });
 
-    // Handle disconnect
-    socket.on("disconnect", () => {
-      if (!rooms[roomId]) return;
-      rooms[roomId].sockets.delete(socket.id);
-
-      // If host leaves, assign new host if possible
-      if (rooms[roomId].host === socket.id) {
-        const socketsArr = Array.from(rooms[roomId].sockets);
-        rooms[roomId].host = socketsArr.length ? socketsArr[0] : null;
-      }
-
-      // Notify room of updated peer count
-      io.to(roomId).emit("peer-count", rooms[roomId].sockets.size);
-
-      // Notify room that a peer left
-      socket.to(roomId).emit("peer-left", socket.id);
-
-      // Clean up empty rooms
-      if (rooms[roomId].sockets.size === 0) {
-        delete rooms[roomId];
-      }
+    // Relay signaling messages
+    socket.on("signal", (data) => {
+      const { to } = data;
+      io.to(to).emit("signal", { from: socket.id, signal: data.signal });
     });
   });
 });
