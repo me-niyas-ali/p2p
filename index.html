@@ -1,298 +1,846 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>P2P File Share</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f0f0f0;
-      padding: 1rem;
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>P2P File Sharing - Niyas</title>
+<style>
+  /* Reset and base */
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0; padding: 0;
+    background: #f7f9fc;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    color: #222;
+  }
+  header {
+    background: #007bff;
+    color: white;
+    padding: 1rem;
+    text-align: center;
+    font-weight: 700;
+    font-size: 1.4rem;
+  }
+  main {
+    flex: 1;
+    padding: 1rem;
+    max-width: 600px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .room-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    align-items: center;
+  }
+  .room-controls input[type="text"] {
+    flex: 1;
+    padding: 0.6rem 0.8rem;
+    font-size: 1.2rem;
+    border: 2px solid #007bff;
+    border-radius: 4px;
+    letter-spacing: 0.2em;
+    text-align: center;
+  }
+  .room-controls button {
+    background: #007bff;
+    border: none;
+    color: white;
+    font-size: 1.1rem;
+    padding: 0.6rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  .room-controls button:disabled {
+    background: #aaa;
+    cursor: not-allowed;
+  }
+  .room-controls button:hover:not(:disabled) {
+    background: #0056b3;
+  }
+
+  .info {
+    margin-bottom: 1rem;
+    font-weight: 600;
+    font-size: 1rem;
+    color: #333;
+  }
+  .info span {
+    font-weight: 700;
+  }
+
+  .file-selector {
+    margin-bottom: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .file-selector label {
+    font-weight: 600;
+  }
+  .file-selector input[type="file"] {
+    cursor: pointer;
+  }
+
+  .file-info {
+    margin-top: 0.4rem;
+    font-size: 0.9rem;
+    color: #555;
+  }
+
+  .btn-send {
+    background: #28a745;
+    border: none;
+    color: white;
+    padding: 0.7rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    font-weight: 600;
+    transition: background 0.3s ease;
+    margin-bottom: 1rem;
+    width: 100%;
+  }
+  .btn-send:disabled {
+    background: #9dd19d;
+    cursor: not-allowed;
+  }
+  .btn-send:hover:not(:disabled) {
+    background: #1e7e34;
+  }
+
+  /* Cards for transfers */
+  .transfer-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 3px 7px rgb(0 0 0 / 0.1);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    border-left: 6px solid #007bff;
+  }
+  .card.sending {
+    border-left-color: #28a745;
+  }
+  .card.receiving {
+    border-left-color: #ffc107;
+  }
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 700;
+    font-size: 1.1rem;
+  }
+  .card-body {
+    font-size: 0.9rem;
+    color: #333;
+  }
+  .progress-container {
+    background: #eee;
+    border-radius: 6px;
+    overflow: hidden;
+    height: 14px;
+    margin-top: 0.4rem;
+  }
+  .progress-bar {
+    background: #007bff;
+    height: 100%;
+    width: 0%;
+    transition: width 0.2s ease;
+  }
+  .card-buttons {
+    margin-top: 0.7rem;
+    display: flex;
+    gap: 0.7rem;
+  }
+  .btn {
+    cursor: pointer;
+    border: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: background 0.3s ease;
+  }
+  .btn.cancel {
+    background: #dc3545;
+    color: white;
+  }
+  .btn.cancel:hover {
+    background: #a71d2a;
+  }
+  .btn.download {
+    background: #007bff;
+    color: white;
+  }
+  .btn.download:hover {
+    background: #0056b3;
+  }
+
+  /* Toast notifications */
+  #toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-width: 320px;
+  }
+  .toast {
+    background: #333;
+    color: white;
+    padding: 0.8rem 1rem;
+    border-radius: 6px;
+    opacity: 0.9;
+    font-size: 0.9rem;
+    animation: fadeinout 3s forwards;
+  }
+  .toast.success {
+    background: #28a745;
+  }
+  .toast.error {
+    background: #dc3545;
+  }
+  .toast.info {
+    background: #007bff;
+  }
+  @keyframes fadeinout {
+    0% {opacity: 0; transform: translateX(100%);}
+    10%, 90% {opacity: 0.9; transform: translateX(0);}
+    100% {opacity: 0; transform: translateX(100%);}
+  }
+
+  /* Modal */
+  #modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+  }
+  #modal {
+    background: white;
+    padding: 1.5rem 2rem;
+    border-radius: 10px;
+    max-width: 90vw;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+  }
+  #modal p {
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+  }
+  #modal button {
+    margin-right: 1rem;
+    padding: 0.6rem 1.2rem;
+    font-weight: 600;
+    border-radius: 5px;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background 0.3s ease;
+  }
+  #modal button.confirm {
+    background: #28a745;
+    color: white;
+  }
+  #modal button.confirm:hover {
+    background: #1e7e34;
+  }
+  #modal button.cancel {
+    background: #dc3545;
+    color: white;
+  }
+  #modal button.cancel:hover {
+    background: #a71d2a;
+  }
+
+  /* Responsive */
+  @media (max-width: 480px) {
+    main {
+      padding: 0.8rem;
     }
-    .container {
-      max-width: 600px;
-      margin: auto;
-      background: white;
-      padding: 1rem;
-      border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    .room-controls {
+      flex-direction: column;
     }
-    h1 { text-align: center; }
-    input, button {
-      width: 100%;
-      padding: 0.75rem;
-      margin: 0.5rem 0;
-      border: 1px solid #ccc;
-      border-radius: 6px;
+    .room-controls input[type="text"] {
+      letter-spacing: normal;
+      font-size: 1rem;
     }
-    .btn-primary { background: #007bff; color: white; border: none; }
-    .btn-danger { background: #dc3545; color: white; border: none; }
-    .card {
-      background: #f8f9fa;
-      margin-top: 1rem;
-      padding: 1rem;
-      border-radius: 8px;
-      border: 1px solid #ddd;
-      position: relative;
+    .btn-send {
+      font-size: 1rem;
     }
-    .progress {
-      background: #e9ecef;
-      border-radius: 5px;
-      overflow: hidden;
-      height: 20px;
-      margin-top: 0.5rem;
-    }
-    .progress-bar {
-      background: #28a745;
-      height: 100%;
-      width: 0;
-      color: white;
-      text-align: center;
-      white-space: nowrap;
-    }
-    .toast {
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #333;
-      color: white;
-      padding: 1rem;
-      border-radius: 8px;
-      display: none;
-      z-index: 1000;
-    }
-    .download-btn, .cancel-btn {
-      margin-top: 10px;
-      padding: 5px 10px;
-      border-radius: 5px;
-      border: none;
-      cursor: pointer;
-    }
-    .download-btn {
-      background-color: #28a745;
-      color: white;
-    }
-    .cancel-btn {
-      background-color: #dc3545;
-      color: white;
-    }
-    @media (max-width: 600px) {
-      .container { padding: 0.5rem; }
-      input, button { font-size: 1rem; }
-    }
-  </style>
+  }
+</style>
 </head>
 <body>
-  <div class="container">
-    <h1>P2P File Share</h1>
-    <input type="text" id="roomIdInput" maxlength="4" placeholder="Enter 4-digit Room ID" />
-    <button id="joinRoomBtn" class="btn-primary">Join Room</button>
-    <div id="roomStatus" style="display:none; margin-top:10px;">
-      <p>Room ID: <span id="currentRoom"></span></p>
-      <p>Connected Peers: <span id="peerCount">0</span></p>
-    </div>
-    <input type="file" id="fileInput" style="display:none;" />
-    <button id="sendFileBtn" style="display:none;" class="btn-primary">Send File</button>
-    <div id="transferContainer"></div>
+<header>P2P File Sharing - Niyas</header>
+<main>
+  <div class="room-controls">
+    <input type="text" id="roomIdInput" maxlength="4" placeholder="Enter 4-digit Room ID" pattern="\d{4}" inputmode="numeric" />
+    <button id="joinRoomBtn">Join Room</button>
   </div>
 
-  <div class="toast" id="toast"></div>
+  <div class="info" id="roomInfo" style="display:none;">
+    Room ID: <span id="displayRoomId"></span> | Connected Peers: <span id="peerCount">0</span>
+  </div>
 
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/simple-peer@9.11.1/simplepeer.min.js"></script>
-  <script>
-    const socket = io('https://your-backend-url.onrender.com');
-    const peers = {};
-    let isHost = false;
-    let currentRoom = null;
+  <div class="file-selector" style="display:none;">
+    <label for="fileInput">Select file to send:</label>
+    <input type="file" id="fileInput" />
+    <div class="file-info" id="fileInfo"></div>
+  </div>
+
+  <button class="btn-send" id="sendBtn" disabled>Send</button>
+
+  <div class="transfer-cards" id="transferCards"></div>
+</main>
+
+<div id="toast-container"></div>
+
+<div id="modal-overlay">
+  <div id="modal">
+    <p id="modal-message"></p>
+    <button class="confirm" id="modal-confirm">Yes</button>
+    <button class="cancel" id="modal-cancel">No</button>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+<script>
+(() => {
+  const socket = io("https://YOUR_RENDER_SERVER_URL_HERE"); // << Replace with your deployed server URL
+
+  const roomIdInput = document.getElementById("roomIdInput");
+  const joinRoomBtn = document.getElementById("joinRoomBtn");
+  const roomInfo = document.getElementById("roomInfo");
+  const displayRoomId = document.getElementById("displayRoomId");
+  const peerCountSpan = document.getElementById("peerCount");
+
+  const fileInput = document.getElementById("fileInput");
+  const fileInfo = document.getElementById("fileInfo");
+  const sendBtn = document.getElementById("sendBtn");
+
+  const transferCards = document.getElementById("transferCards");
+
+  const toastContainer = document.getElementById("toast-container");
+
+  const modalOverlay = document.getElementById("modal-overlay");
+  const modalMessage = document.getElementById("modal-message");
+  const modalConfirm = document.getElementById("modal-confirm");
+  const modalCancel = document.getElementById("modal-cancel");
+
+  let roomId = null;
+  let isHost = false;
+  let connectedPeers = new Map(); // peerId -> RTCPeerConnection & dataChannels
+
+  let localSocketId = null;
+  let joined = false;
+
+  let fileToSend = null;
+  let fileReader = null;
+
+  // --- Utility functions ---
+
+  function toast(msg, type = "info") {
+    const toastEl = document.createElement("div");
+    toastEl.className = `toast ${type}`;
+    toastEl.textContent = msg;
+    toastContainer.appendChild(toastEl);
+    setTimeout(() => toastEl.remove(), 3000);
+  }
+
+  function formatBytes(bytes) {
+    if (bytes < 1024) return bytes + " B";
+    let kb = bytes / 1024;
+    if (kb < 1024) return kb.toFixed(1) + " KB";
+    let mb = kb / 1024;
+    if (mb < 1024) return mb.toFixed(1) + " MB";
+    let gb = mb / 1024;
+    return gb.toFixed(2) + " GB";
+  }
+
+  // --- Modal logic ---
+  function showModal(message) {
+    return new Promise((resolve) => {
+      modalMessage.textContent = message;
+      modalOverlay.style.display = "flex";
+
+      function cleanup() {
+        modalConfirm.removeEventListener("click", onConfirm);
+        modalCancel.removeEventListener("click", onCancel);
+        modalOverlay.style.display = "none";
+      }
+      function onConfirm() {
+        cleanup();
+        resolve(true);
+      }
+      function onCancel() {
+        cleanup();
+        resolve(false);
+      }
+      modalConfirm.addEventListener("click", onConfirm);
+      modalCancel.addEventListener("click", onCancel);
+    });
+  }
+
+  // --- WebRTC Setup ---
+  function createPeerConnection(peerId, isInitiator) {
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+    });
+
+    // Data channel for file transfer
+    let dataChannel = null;
+    let receiveBuffer = [];
+    let receivedSize = 0;
     let fileMeta = null;
+    let receiveCard = null;
+    let receiveCancelRequested = false;
 
-    const joinBtn = document.getElementById('joinRoomBtn');
-    const roomInput = document.getElementById('roomIdInput');
-    const fileInput = document.getElementById('fileInput');
-    const sendBtn = document.getElementById('sendFileBtn');
-    const roomStatus = document.getElementById('roomStatus');
-    const currentRoomEl = document.getElementById('currentRoom');
-    const peerCountEl = document.getElementById('peerCount');
-    const transferContainer = document.getElementById('transferContainer');
-    const toast = document.getElementById('toast');
-
-    function showToast(message) {
-      toast.textContent = message;
-      toast.style.display = 'block';
-      setTimeout(() => { toast.style.display = 'none'; }, 3000);
+    if (isInitiator) {
+      dataChannel = pc.createDataChannel("file");
+      setupDataChannel(peerId, dataChannel);
+    } else {
+      pc.ondatachannel = (event) => {
+        dataChannel = event.channel;
+        setupDataChannel(peerId, dataChannel);
+      };
     }
 
-    function updatePeerCount() {
-      peerCountEl.textContent = Object.keys(peers).length;
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket.emit("signal", {
+          to: peerId,
+          from: localSocketId,
+          signal: { candidate: event.candidate }
+        });
+      }
+    };
+
+    // Create offer if initiator
+    if (isInitiator) {
+      pc.createOffer().then(offer => {
+        pc.setLocalDescription(offer);
+        socket.emit("signal", {
+          to: peerId,
+          from: localSocketId,
+          signal: offer
+        });
+      });
     }
 
-    function createTransferCard(fileName, isSender) {
-      const card = document.createElement('div');
-      card.className = 'card';
+    // Signal handling
+    pc.handleSignal = async (signal) => {
+      if (signal.sdp) {
+        await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+        if (signal.sdp.type === "offer") {
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          socket.emit("signal", {
+            to: peerId,
+            from: localSocketId,
+            signal: answer
+          });
+        }
+      } else if (signal.candidate) {
+        try {
+          await pc.addIceCandidate(signal.candidate);
+        } catch (e) {
+          console.warn("Failed to add ICE candidate:", e);
+        }
+      }
+    };
 
-      const title = document.createElement('p');
-      title.textContent = `${isSender ? 'Sending' : 'Receiving'}: ${fileName}`;
-      const progress = document.createElement('div');
-      progress.className = 'progress';
+    // Data channel logic
+    function setupDataChannel(peerId, dc) {
+      dc.binaryType = "arraybuffer";
 
-      const progressBar = document.createElement('div');
-      progressBar.className = 'progress-bar';
-      progress.appendChild(progressBar);
+      dc.onopen = () => {
+        toast(`Data channel open with ${peerId}`, "success");
+      };
 
-      const cancelBtn = document.createElement('button');
-      cancelBtn.className = 'cancel-btn';
-      cancelBtn.textContent = 'Cancel';
+      dc.onclose = () => {
+        toast(`Data channel closed with ${peerId}`, "error");
+      };
 
-      card.appendChild(title);
-      card.appendChild(progress);
-      card.appendChild(cancelBtn);
+      dc.onerror = (err) => {
+        console.error("DataChannel error:", err);
+      };
 
-      transferContainer.appendChild(card);
+      dc.onmessage = async (event) => {
+        const data = event.data;
+        if (typeof data === "string") {
+          // Parse metadata or control messages
+          try {
+            const msg = JSON.parse(data);
 
-      return { card, progressBar, cancelBtn };
+            if (msg.type === "file-meta") {
+              // Received file metadata - ask for confirmation
+              if (receiveCancelRequested) return;
+
+              fileMeta = msg;
+              const accept = await showModal(
+                `Receive file "${msg.name}" (${formatBytes(msg.size)}) from peer?`
+              );
+              if (!accept) {
+                dc.send(JSON.stringify({ type: "file-reject" }));
+                fileMeta = null;
+                return;
+              } else {
+                dc.send(JSON.stringify({ type: "file-accept" }));
+
+                // Setup receive card UI
+                receiveBuffer = [];
+                receivedSize = 0;
+                receiveCancelRequested = false;
+                receiveCard = createTransferCard("Receiving", msg.name, msg.size, false);
+
+                // Add cancel button logic
+                receiveCard.cancelBtn.onclick = () => {
+                  receiveCancelRequested = true;
+                  dc.send(JSON.stringify({ type: "file-cancel" }));
+                  removeCard(receiveCard.card);
+                  toast("Reception cancelled.", "info");
+                };
+              }
+            } else if (msg.type === "file-reject") {
+              toast("Peer rejected file transfer.", "error");
+              cleanupSendCard(peerId);
+            } else if (msg.type === "file-accept") {
+              // Start sending chunks
+              sendFileChunks(dc, peerId);
+            } else if (msg.type === "file-cancel") {
+              toast("Peer cancelled the transfer.", "info");
+              cleanupSendCard(peerId);
+            }
+          } catch (e) {
+            console.error("Failed to parse data channel message", e);
+          }
+        } else {
+          // Receiving file chunk
+          if (!fileMeta || receiveCancelRequested) return;
+
+          receiveBuffer.push(data);
+          receivedSize += data.byteLength;
+
+          updateProgress(receiveCard.progressBar, receivedSize / fileMeta.size);
+
+          if (receivedSize >= fileMeta.size) {
+            // Finished receiving
+            const receivedBlob = new Blob(receiveBuffer);
+            receiveCard.progressBar.style.width = "100%";
+            receiveCard.body.textContent = `Received "${fileMeta.name}" (${formatBytes(fileMeta.size)})`;
+
+            // Add download button
+            receiveCard.downloadBtn = document.createElement("button");
+            receiveCard.downloadBtn.textContent = "Download";
+            receiveCard.downloadBtn.className = "btn download";
+            receiveCard.downloadBtn.onclick = () => {
+              const url = URL.createObjectURL(receivedBlob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = fileMeta.name;
+              a.click();
+              URL.revokeObjectURL(url);
+            };
+            receiveCard.buttonsDiv.appendChild(receiveCard.downloadBtn);
+
+            // Remove cancel button
+            if (receiveCard.cancelBtn) {
+              receiveCard.cancelBtn.remove();
+            }
+
+            // Clear buffer
+            receiveBuffer = [];
+            receivedSize = 0;
+            fileMeta = null;
+          }
+        }
+      };
     }
 
-    joinBtn.onclick = () => {
-      const roomId = roomInput.value.trim();
-      if (currentRoom) {
-        socket.emit('leave-room', currentRoom);
-        currentRoom = null;
-        joinBtn.textContent = 'Join Room';
-        roomStatus.style.display = 'none';
-        showToast('Left the room');
+    return {
+      pc,
+      dataChannel
+    };
+  }
+
+  function updateProgress(progressBar, fraction) {
+    const percent = Math.min(100, Math.floor(fraction * 100));
+    progressBar.style.width = percent + "%";
+  }
+
+  function createTransferCard(title, fileName, fileSize, isSending) {
+    const card = document.createElement("div");
+    card.className = "card " + (isSending ? "sending" : "receiving");
+
+    const header = document.createElement("div");
+    header.className = "card-header";
+    header.textContent = title;
+
+    const body = document.createElement("div");
+    body.className = "card-body";
+    body.textContent = `${fileName} (${formatBytes(fileSize)})`;
+
+    const progressContainer = document.createElement("div");
+    progressContainer.className = "progress-container";
+
+    const progressBar = document.createElement("div");
+    progressBar.className = "progress-bar";
+    progressContainer.appendChild(progressBar);
+
+    const buttonsDiv = document.createElement("div");
+    buttonsDiv.className = "card-buttons";
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.className = "btn cancel";
+    cancelBtn.textContent = "Cancel";
+
+    buttonsDiv.appendChild(cancelBtn);
+
+    card.appendChild(header);
+    card.appendChild(body);
+    card.appendChild(progressContainer);
+    card.appendChild(buttonsDiv);
+
+    transferCards.appendChild(card);
+
+    return { card, progressBar, cancelBtn, body, buttonsDiv };
+  }
+
+  // Sending logic
+  let sendCards = new Map(); // peerId -> send card
+  let sendCancelFlags = new Map(); // peerId -> boolean
+
+  async function sendFileChunks(dc, peerId) {
+    if (!fileToSend) return;
+    if (!dc || dc.readyState !== "open") return;
+
+    const CHUNK_SIZE = 16 * 1024; // 16 KB per chunk
+    let offset = 0;
+
+    let sendCard = sendCards.get(peerId);
+    if (!sendCard) {
+      sendCard = createTransferCard("Sending", fileToSend.name, fileToSend.size, true);
+      sendCards.set(peerId, sendCard);
+
+      sendCard.cancelBtn.onclick = () => {
+        sendCancelFlags.set(peerId, true);
+        sendCard.body.textContent = "Transfer cancelled.";
+        sendCard.cancelBtn.disabled = true;
+        toast("Transfer cancelled to peer " + peerId, "info");
+      };
+    }
+
+    while (offset < fileToSend.size) {
+      if (sendCancelFlags.get(peerId)) break;
+
+      const chunk = fileToSend.slice(offset, offset + CHUNK_SIZE);
+      const arrayBuffer = await chunk.arrayBuffer();
+
+      try {
+        dc.send(arrayBuffer);
+      } catch (e) {
+        toast("Send error: " + e.message, "error");
+        break;
+      }
+
+      offset += CHUNK_SIZE;
+      updateProgress(sendCard.progressBar, offset / fileToSend.size);
+      sendCard.body.textContent = `Sending "${fileToSend.name}" (${formatBytes(offset)} / ${formatBytes(fileToSend.size)})`;
+      await new Promise(r => setTimeout(r, 10)); // small delay to prevent congestion
+    }
+
+    if (offset >= fileToSend.size) {
+      sendCard.body.textContent = `Sent "${fileToSend.name}" successfully.`;
+      sendCard.cancelBtn.remove();
+      sendCancelFlags.delete(peerId);
+    }
+  }
+
+  // Clean up send card on error or cancel
+  function cleanupSendCard(peerId) {
+    const card = sendCards.get(peerId);
+    if (card) {
+      card.body.textContent = "Transfer cancelled or failed.";
+      card.cancelBtn.disabled = true;
+      sendCancelFlags.delete(peerId);
+    }
+  }
+
+  function removeCard(card) {
+    card.remove();
+  }
+
+  // --- Socket.IO event handlers ---
+
+  socket.on("connect", () => {
+    localSocketId = socket.id;
+  });
+
+  socket.on("peer-count", (count) => {
+    peerCountSpan.textContent = count;
+  });
+
+  socket.on("new-peer", (peerId) => {
+    if (joined && !connectedPeers.has(peerId)) {
+      // Initiate WebRTC connection with new peer as initiator (host does this)
+      const pcObj = createPeerConnection(peerId, true);
+      connectedPeers.set(peerId, pcObj);
+    }
+  });
+
+  socket.on("peer-left", (peerId) => {
+    toast(`Peer ${peerId} left the room.`, "info");
+    if (connectedPeers.has(peerId)) {
+      const pcObj = connectedPeers.get(peerId);
+      pcObj.pc.close();
+      connectedPeers.delete(peerId);
+    }
+    // Remove any send cards related to that peer
+    if (sendCards.has(peerId)) {
+      removeCard(sendCards.get(peerId).card);
+      sendCards.delete(peerId);
+    }
+  });
+
+  socket.on("signal", async (data) => {
+    const { from, signal } = data;
+
+    if (!connectedPeers.has(from)) {
+      // Incoming connection, not initiator
+      const pcObj = createPeerConnection(from, false);
+      connectedPeers.set(from, pcObj);
+    }
+
+    const pcObj = connectedPeers.get(from);
+    await pcObj.handleSignal(signal);
+  });
+
+  // --- UI logic ---
+  joinRoomBtn.onclick = async () => {
+    if (!joined) {
+      const id = roomIdInput.value.trim();
+      if (!/^\d{4}$/.test(id)) {
+        toast("Please enter a valid 4-digit Room ID.", "error");
         return;
       }
-      if (/^\d{4}$/.test(roomId)) {
-        currentRoom = roomId;
-        socket.emit('join-room', roomId);
-        joinBtn.textContent = 'Exit Room';
-        currentRoomEl.textContent = roomId;
-        roomStatus.style.display = 'block';
-        showToast(`Joined room ${roomId}`);
-      } else {
-        showToast('Invalid Room ID');
-      }
-    }
-
-    socket.on('room-joined', ({ host, peerId }) => {
-      isHost = host;
-      showToast(host ? 'You are host' : 'Connected to host');
-      fileInput.style.display = 'block';
-    });
-
-    socket.on('peer-count', count => {
-      peerCountEl.textContent = count;
-    });
-
-    fileInput.onchange = () => {
-      if (fileInput.files[0]) {
-        sendBtn.style.display = 'block';
-      }
-    }
-
-    sendBtn.onclick = () => {
-      const file = fileInput.files[0];
-      if (!file) return showToast('No file selected');
-
-      const { card, progressBar, cancelBtn } = createTransferCard(file.name, true);
-
-      Object.values(peers).forEach(peer => {
-        const chunkSize = 16 * 1024;
-        const stream = file.stream().getReader();
-
-        const sendChunk = async () => {
-          let totalSent = 0;
-          while (true) {
-            const { done, value } = await stream.read();
-            if (done) break;
-            peer.send(value);
-            totalSent += value.length;
-            const percent = Math.floor((totalSent / file.size) * 100);
-            progressBar.style.width = percent + '%';
-            progressBar.textContent = percent + '%';
-          }
-        };
-        sendChunk();
-
-        cancelBtn.onclick = () => {
-          stream.cancel();
-          showToast('Transfer canceled');
-        };
-      });
-    }
-
-    socket.on('signal', ({ from, signal }) => {
-      if (!peers[from]) {
-        const peer = new SimplePeer({ initiator: false, trickle: false });
-        peers[from] = peer;
-        setupPeer(peer, from);
-      }
-      peers[from].signal(signal);
-    });
-
-    function setupPeer(peer, id) {
-      peer.on('signal', signal => {
-        socket.emit('signal', { to: id, signal });
-      });
-
-      peer.on('data', data => {
-        if (!fileMeta) {
-          try {
-            fileMeta = JSON.parse(data);
-            if (fileMeta.type === 'file-meta') {
-              const confirm = window.confirm(`Receive file: ${fileMeta.name} (${Math.ceil(fileMeta.size / 1024)} KB)?`);
-              if (!confirm) return;
-
-              const received = [];
-              let receivedSize = 0;
-
-              const { card, progressBar, cancelBtn } = createTransferCard(fileMeta.name, false);
-
-              peer.on('data', chunk => {
-                if (typeof chunk === 'string') return;
-                received.push(chunk);
-                receivedSize += chunk.length;
-                const percent = Math.floor((receivedSize / fileMeta.size) * 100);
-                progressBar.style.width = percent + '%';
-                progressBar.textContent = percent + '%';
-
-                if (receivedSize >= fileMeta.size) {
-                  const blob = new Blob(received);
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = fileMeta.name;
-                  a.textContent = 'Download';
-                  a.className = 'download-btn';
-                  card.appendChild(a);
-                }
-              });
-
-              cancelBtn.onclick = () => {
-                peer.destroy();
-                showToast('Receiving canceled');
-              };
-            }
-          } catch (e) {}
+      socket.emit("join-room", id, (response) => {
+        if (!response.success) {
+          toast(response.error || "Failed to join room.", "error");
+          return;
         }
-      });
+        roomId = id;
+        isHost = response.isHost;
+        joined = true;
 
-      peer.on('connect', () => {
-        showToast(`Connected to peer: ${id}`);
-        updatePeerCount();
-      });
+        roomIdInput.disabled = true;
+        joinRoomBtn.textContent = "Exit Room";
 
-      peer.on('close', () => {
-        delete peers[id];
-        updatePeerCount();
-        showToast(`Peer ${id} disconnected`);
+        roomInfo.style.display = "block";
+        displayRoomId.textContent = roomId;
+        peerCountSpan.textContent = response.peerCount;
+
+        document.querySelector(".file-selector").style.display = "flex";
+        sendBtn.disabled = true;
+
+        toast(`Joined room ${roomId} as ${isHost ? "host" : "peer"}`, "success");
       });
+    } else {
+      // Exit room: clean everything
+      leaveRoom();
     }
-  </script>
+  };
+
+  function leaveRoom() {
+    connectedPeers.forEach(({ pc, dataChannel }) => {
+      pc.close();
+    });
+    connectedPeers.clear();
+
+    // Clear send cards
+    sendCards.forEach(card => {
+      removeCard(card.card);
+    });
+    sendCards.clear();
+    sendCancelFlags.clear();
+
+    // Clear receive cards
+    transferCards.innerHTML = "";
+
+    roomId = null;
+    isHost = false;
+    joined = false;
+
+    roomIdInput.disabled = false;
+    joinRoomBtn.textContent = "Join Room";
+
+    roomInfo.style.display = "none";
+    fileInput.value = "";
+    fileInfo.textContent = "";
+    sendBtn.disabled = true;
+    document.querySelector(".file-selector").style.display = "none";
+
+    toast("Left the room.", "info");
+  }
+
+  fileInput.onchange = () => {
+    if (fileInput.files.length === 0) {
+      fileInfo.textContent = "";
+      sendBtn.disabled = true;
+      fileToSend = null;
+      return;
+    }
+    const file = fileInput.files[0];
+    fileToSend = file;
+    fileInfo.textContent = `${file.name} (${formatBytes(file.size)})`;
+    sendBtn.disabled = connectedPeers.size === 0;
+  };
+
+  sendBtn.onclick = () => {
+    if (!fileToSend) return;
+    if (connectedPeers.size === 0) {
+      toast("No peers connected to send file.", "error");
+      return;
+    }
+    toast(`Starting file transfer to ${connectedPeers.size} peer(s)`, "info");
+
+    connectedPeers.forEach(({ dataChannel }, peerId) => {
+      if (!dataChannel || dataChannel.readyState !== "open") {
+        toast(`Data channel to peer ${peerId} not open`, "error");
+        return;
+      }
+      // Send file meta to peer
+      sendCancelFlags.set(peerId, false);
+      dataChannel.send(JSON.stringify({
+        type: "file-meta",
+        name: fileToSend.name,
+        size: fileToSend.size,
+        lastModified: fileToSend.lastModified,
+        typeMime: fileToSend.type
+      }));
+    });
+  };
+})();
+</script>
 </body>
 </html>
