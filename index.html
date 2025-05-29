@@ -3,33 +3,286 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>P2P File Share</title>
-  <link rel="stylesheet" href="style.css" />
+  <title>P2P File Sharing</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 1rem;
+      background: #f3f4f6;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    #peers {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: center;
+    }
+
+    .peer-card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding: 1rem;
+      width: 200px;
+      text-align: center;
+    }
+
+    .peer-card button {
+      padding: 0.4rem 0.8rem;
+      margin-top: 0.5rem;
+      border: none;
+      border-radius: 4px;
+      background: #2563eb;
+      color: white;
+      cursor: pointer;
+    }
+
+    .peer-card button:disabled {
+      background: #10b981;
+      cursor: default;
+    }
+
+    #controls {
+      margin: 2rem 0;
+      text-align: center;
+    }
+
+    #progress-container {
+      margin-top: 1rem;
+      display: none;
+      text-align: center;
+    }
+
+    #progress-bar {
+      width: 80%;
+      height: 20px;
+      background: #e5e7eb;
+      margin: 1rem auto;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    #progress {
+      width: 0%;
+      height: 100%;
+      background: #3b82f6;
+    }
+
+    #fileNameDisplay {
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    #toast {
+      position: fixed;
+      bottom: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #323232;
+      color: white;
+      padding: 0.8rem 1.2rem;
+      border-radius: 6px;
+      display: none;
+    }
+
+    @media(max-width: 500px) {
+      .peer-card {
+        width: 100%;
+      }
+    }
+  </style>
 </head>
 <body>
-  <h2 class="app-title">P2P File Sharing</h2>
-  <div id="peerList" class="peer-container"></div>
-  <div class="actions">
-    <input type="file" id="fileInput" multiple hidden />
-    <button onclick="document.getElementById('fileInput').click()">Select Files</button>
-    <button id="sendBtn" disabled>Send Files</button>
-  </div>
-  <div id="fileTransfers"></div>
+  <h1>📡 P2P File Sharing</h1>
 
-  <!-- Toasts -->
+  <div id="controls">
+    <input type="file" id="fileInput" />
+    <div id="fileNameDisplay">No file selected</div>
+    <button id="sendBtn">Send Files</button>
+  </div>
+
+  <div id="peers"></div>
+
+  <div id="progress-container">
+    <div>Transfer Progress</div>
+    <div id="progress-bar"><div id="progress"></div></div>
+    <button id="cancelBtn">Cancel</button>
+  </div>
+
   <div id="toast"></div>
 
-  <!-- Confirm Modal -->
-  <div id="modal" class="modal hidden">
-    <div class="modal-content">
-      <p id="modalText">Accept incoming file?</p>
-      <button id="acceptBtn">Accept</button>
-      <button id="rejectBtn">Reject</button>
-    </div>
-  </div>
-
+  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/simple-peer@9.11.1/simplepeer.min.js"></script>
-  <script src="main.js"></script>
+  <script>
+    const socket = io('https://your-backend-url.onrender.com'); // Replace with your Render backend URL
+    const peer = new Peer();
+    const peers = {};
+
+    const fileInput = document.getElementById('fileInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const fileNameDisplay = document.getElementById('fileNameDisplay');
+    const toast = document.getElementById('toast');
+    const progressContainer = document.getElementById('progress-container');
+    const progressBar = document.getElementById('progress');
+    const cancelBtn = document.getElementById('cancelBtn');
+
+    let currentFile = null;
+    let activeTransfers = [];
+
+    peer.on('open', (id) => {
+      socket.emit('register-peer', id);
+    });
+
+    socket.on('peer-list', (peerList) => {
+      document.getElementById('peers').innerHTML = '';
+      peerList.forEach(pid => {
+        if (pid !== peer.id && !peers[pid]) {
+          const card = document.createElement('div');
+          card.className = 'peer-card';
+          card.dataset.peerId = pid;
+          card.innerHTML = `
+            <div class="username">${pid.slice(0, 8)}</div>
+            <button onclick="connectToPeer('${pid}', this)">Connect</button>
+          `;
+          document.getElementById('peers').appendChild(card);
+        }
+      });
+    });
+
+    function connectToPeer(peerId, btn) {
+      if (peers[peerId]) return;
+      const conn = peer.connect(peerId);
+      setupConnection(conn, peerId);
+      btn.textContent = 'Connecting...';
+      btn.disabled = true;
+    }
+
+    peer.on('connection', conn => {
+      setupConnection(conn, conn.peer);
+    });
+
+    function setupConnection(conn, peerId) {
+      peers[peerId] = conn;
+      conn.on('open', () => {
+        console.log(`Connected to ${peerId}`);
+        const peerCard = document.querySelector(`.peer-card[data-peer-id="${peerId}"]`);
+        if (peerCard) {
+          const connectBtn = peerCard.querySelector('button');
+          connectBtn.textContent = 'Connected';
+          connectBtn.disabled = true;
+        }
+      });
+
+      conn.on('data', async (data) => {
+        if (data.type === 'file-offer') {
+          const confirm = window.confirm(`Receive file "${data.name}" (${(data.size/1024).toFixed(2)} KB)?`);
+          if (!confirm) return;
+          conn.send({ type: 'accept' });
+        } else if (data.type === 'file-chunk') {
+          receiveChunk(peerId, data);
+        }
+      });
+    }
+
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      if (!file) {
+        fileNameDisplay.textContent = 'No file selected';
+        return;
+      }
+      const readableSize = (file.size / 1024).toFixed(2) + ' KB';
+      fileNameDisplay.textContent = `Selected File: ${file.name} (${readableSize})`;
+      currentFile = file;
+    });
+
+    sendBtn.onclick = () => {
+      if (!currentFile) return showToast("No file selected!");
+      const file = currentFile;
+      Object.values(peers).forEach(conn => {
+        conn.send({ type: 'file-offer', name: file.name, size: file.size });
+        conn.on('data', response => {
+          if (response.type === 'accept') {
+            sendFileToPeer(conn, file);
+          }
+        });
+      });
+    };
+
+    function sendFileToPeer(conn, file) {
+      const chunkSize = 64 * 1024;
+      const reader = new FileReader();
+      let offset = 0;
+
+      progressContainer.style.display = 'block';
+      progressBar.style.width = '0%';
+
+      function readSlice() {
+        const slice = file.slice(offset, offset + chunkSize);
+        reader.readAsArrayBuffer(slice);
+      }
+
+      reader.onload = () => {
+        conn.send({ type: 'file-chunk', name: file.name, chunk: reader.result });
+        offset += chunkSize;
+        const percent = Math.min(100, (offset / file.size) * 100);
+        progressBar.style.width = percent + '%';
+
+        if (offset < file.size) readSlice();
+        else showToast('File sent');
+      };
+
+      reader.onerror = () => showToast('Error reading file');
+      readSlice();
+
+      cancelBtn.onclick = () => {
+        offset = file.size; // stop sending
+        progressContainer.style.display = 'none';
+        showToast('Transfer cancelled');
+      };
+    }
+
+    const receivedFiles = {};
+
+    function receiveChunk(peerId, data) {
+      if (!receivedFiles[peerId]) {
+        receivedFiles[peerId] = {
+          name: data.name,
+          chunks: []
+        };
+      }
+
+      receivedFiles[peerId].chunks.push(data.chunk);
+      const percent = (receivedFiles[peerId].chunks.length * 64 * 1024 / data.size) * 100;
+      progressContainer.style.display = 'block';
+      progressBar.style.width = Math.min(100, percent) + '%';
+
+      if (data.done || percent >= 100) {
+        const blob = new Blob(receivedFiles[peerId].chunks);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = receivedFiles[peerId].name;
+        a.click();
+        progressContainer.style.display = 'none';
+        showToast('File received and downloaded');
+        delete receivedFiles[peerId];
+      }
+    }
+
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.style.display = 'block';
+      setTimeout(() => toast.style.display = 'none', 3000);
+    }
+
+    setInterval(() => {
+      socket.emit('get-peers');
+    }, 3000);
+  </script>
 </body>
 </html>
