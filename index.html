@@ -5,342 +5,151 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>P2P File Sharing</title>
   <style>
-    * { box-sizing: border-box; }
-    body {
-      font-family: "Segoe UI", sans-serif;
-      margin: 0;
-      padding: 0;
-      background: #f1f3f6;
-      display: flex;
-      justify-content: center;
+    body { margin: 0; font-family: sans-serif; background: #f0f2f5; }
+    header { padding: 1em; background: #222; color: #fff; text-align: center; }
+    #main { padding: 1em; display: flex; flex-direction: column; gap: 1em; }
+    #peers, #transfers { display: flex; flex-wrap: wrap; gap: 1em; }
+    .card {
+      background: white; border-radius: 8px; padding: 1em;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1); width: 200px;
     }
-
-    .container {
-      max-width: 1000px;
-      width: 100%;
-      padding: 2rem 1rem;
-    }
-
-    h2 {
-      margin-bottom: 0.5rem;
-    }
-
-    .section-card {
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-      margin-bottom: 2rem;
-      padding: 1rem 1.5rem;
-    }
-
-    .section-title {
-      font-size: 1.2rem;
-      font-weight: 600;
-      margin-bottom: 1rem;
-      border-bottom: 1px solid #ddd;
-      padding-bottom: 0.5rem;
-    }
-
-    #usernameDisplay {
-      font-weight: bold;
-      margin-bottom: 1rem;
-    }
-
-    #peers {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
-    }
-
-    .peer-card {
-      background: #fdfdfd;
-      border: 1px solid #ddd;
-      border-radius: 10px;
-      padding: 1rem;
-      flex: 1 1 200px;
-      max-width: 220px;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      position: relative;
-    }
-
-    .status-dot {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      background: gray;
-    }
-
-    .status-online {
-      background: green;
-    }
-
-    .peer-card button {
-      margin-top: 0.75rem;
-      padding: 0.5rem 1rem;
-      background: #0078d7;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-
-    .peer-card button:hover {
-      background: #005fa3;
-    }
-
-    #downloads .file-progress {
-      background: #fcfcfc;
-      padding: 1rem;
-      margin-top: 1rem;
-      border-radius: 10px;
-      border: 1px solid #ddd;
-    }
-
-    .progress-bar {
-      width: 100%;
-      height: 12px;
-      background: #ddd;
-      border-radius: 10px;
-      margin-top: 0.5rem;
-      overflow: hidden;
-    }
-
-    .progress-bar-inner {
-      height: 100%;
-      background: #4caf50;
-      width: 0%;
-    }
-
-    .cancel-btn {
-      margin-top: 0.5rem;
-      background: #e53935;
-      border: none;
-      color: white;
-      padding: 0.3rem 0.8rem;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-
+    .card button { margin-top: 0.5em; }
+    .offline { opacity: 0.5; }
+    #username { margin-bottom: 1em; }
     @media (max-width: 600px) {
-      .peer-card {
-        max-width: 100%;
-        width: 100%;
-      }
-
-      .container {
-        padding: 1rem;
-      }
+      .card { width: 100%; }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="section-card">
-      <div id="usernameDisplay"></div>
+  <header>
+    <h1>P2P File Sharing</h1>
+  </header>
+  <main id="main">
+    <div>
+      <input id="fileInput" type="file" />
     </div>
-
-    <div class="section-card">
-      <div class="section-title">Connected Peers</div>
-      <div id="peers"></div>
-    </div>
-
-    <div class="section-card">
-      <div class="section-title">File Transfers</div>
-      <div id="downloads"></div>
-    </div>
-  </div>
+    <section id="peers"></section>
+    <section id="transfers"></section>
+  </main>
 
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script>
-    const socket = io('https://p2p-share-7wvh.onrender.com');
-    const localUsername = generateUsername();
-    document.getElementById('usernameDisplay').textContent = `You are: ${localUsername}`;
-    socket.emit('register', localUsername);
+    const socket = io('https://your-backend-url.onrender.com'); // replace with your Render backend
+    const peersEl = document.getElementById('peers');
+    const transfersEl = document.getElementById('transfers');
+    const fileInput = document.getElementById('fileInput');
 
     const peers = {};
-    const peerUsernames = {};
-    const cancelFlags = {};
-    const peerElements = {};
+    const connections = {};
+    const myUsername = generateUsername();
 
-    function generateUsername() {
-      const adjectives = ['Fast', 'Sly', 'Brave', 'Clever', 'Wise'];
-      const nouns = ['Tiger', 'Eagle', 'Shark', 'Wolf', 'Panther'];
-      return (
-        adjectives[Math.floor(Math.random() * adjectives.length)] + ' ' +
-        nouns[Math.floor(Math.random() * nouns.length)]
-      );
+    socket.emit('register', myUsername);
+
+    socket.on('peer-list', (peerList) => {
+      peersEl.innerHTML = '';
+      peerList.forEach(peer => {
+        peers[peer.id] = peer;
+        const card = document.createElement('div');
+        card.className = 'card' + (peer.online ? '' : ' offline');
+        card.innerHTML = `<strong>${peer.username}</strong><br/>
+          <button onclick="sendFileTo('${peer.id}')">Send File</button>`;
+        peersEl.appendChild(card);
+      });
+    });
+
+    socket.on('signal', async ({ fromId, signal }) => {
+      if (!connections[fromId]) {
+        createConnection(fromId, false);
+      }
+      await connections[fromId].signal(signal);
+    });
+
+    function createConnection(peerId, isInitiator) {
+      const conn = new SimplePeer({ initiator: isInitiator, trickle: false });
+      connections[peerId] = conn;
+
+      conn.on('signal', signal => {
+        socket.emit('signal', { targetId: peerId, signal });
+      });
+
+      conn.on('data', data => receiveChunk(peerId, data));
+      conn.on('connect', () => console.log(`Connected with ${peerId}`));
+      conn.on('close', () => console.log(`Disconnected from ${peerId}`));
     }
 
-    function createPeerConnection(id, username) {
-      const peer = new RTCPeerConnection();
-      const dataChannel = peer.createDataChannel('file');
+    function sendFileTo(peerId) {
+      const file = fileInput.files[0];
+      if (!file || !connections[peerId]) return;
 
-      peers[id] = { peer, dataChannel, chunks: [], meta: null, received: 0 };
-
-      dataChannel.onopen = () => console.log('Channel open with', username);
-
-      dataChannel.onmessage = (event) => {
-        if (typeof event.data === 'string') {
-          const meta = JSON.parse(event.data);
-          const accept = confirm(`Receive file "${meta.filename}" (${Math.round(meta.size / 1024)} KB) from ${username}?`);
-          if (accept) {
-            peers[id].meta = meta;
-            peers[id].chunks = [];
-            peers[id].received = 0;
-            cancelFlags[id] = false;
-            createProgressBar(username, meta.filename, id, true);
-          }
-        } else {
-          const info = peers[id];
-          if (cancelFlags[id]) return;
-          info.chunks.push(event.data);
-          info.received += event.data.byteLength;
-          updateProgressBar(id, info.received / info.meta.size * 100);
-          if (info.received >= info.meta.size) {
-            const blob = new Blob(info.chunks, { type: info.meta.mimeType });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = info.meta.filename;
-            a.textContent = `Download ${info.meta.filename}`;
-            a.style.display = 'block';
-            document.getElementById(`progress-${id}`).appendChild(a);
-          }
-        }
-      };
-
-      peer.onicecandidate = (e) => {
-        if (e.candidate) {
-          socket.emit('signal', { target: id, signal: { candidate: e.candidate } });
-        }
-      };
-
-      return peer;
-    }
-
-    function addPeerCard(id, username) {
-      if (username === localUsername) return;
-
-      peerUsernames[id] = username;
-
-      const div = document.createElement('div');
-      div.className = 'peer-card';
-      div.id = `peer-${id}`;
-      div.innerHTML = `
-        <span class="status-dot status-online"></span>
-        <strong>${username}</strong>
-        <button onclick="sendFileTo('${id}')">Send File</button>
-      `;
-      peerElements[id] = div;
-      document.getElementById('peers').appendChild(div);
-    }
-
-    function removePeerCard(id) {
-      document.getElementById(`peer-${id}`)?.remove();
-      delete peerUsernames[id];
-      delete peerElements[id];
-    }
-
-    async function sendFileTo(id) {
-      const { dataChannel } = peers[id];
-      if (!dataChannel || dataChannel.readyState !== 'open') return alert('Channel not open.');
-
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.onchange = async () => {
-        const file = input.files[0];
+      const reader = new FileReader();
+      reader.onload = () => {
+        const buffer = new Uint8Array(reader.result);
         const chunkSize = 64 * 1024;
         let offset = 0;
-        cancelFlags[id] = false;
+        const transferCard = createTransferCard(file.name, file.size, true);
 
-        dataChannel.send(JSON.stringify({
-          filename: file.name,
-          mimeType: file.type,
-          size: file.size
-        }));
+        const sendNext = () => {
+          if (offset < buffer.length) {
+            const chunk = buffer.slice(offset, offset + chunkSize);
+            connections[peerId].send(chunk);
+            offset += chunkSize;
+            updateProgress(transferCard, offset, file.size);
+            setTimeout(sendNext, 0);
+          } else {
+            console.log('File sent');
+          }
+        };
 
-        createProgressBar(peerUsernames[id], file.name, id, false);
-
-        while (offset < file.size && !cancelFlags[id]) {
-          const chunk = await file.slice(offset, offset + chunkSize).arrayBuffer();
-          dataChannel.send(chunk);
-          offset += chunkSize;
-          updateProgressBar(id, offset / file.size * 100);
-        }
-
-        if (cancelFlags[id]) {
-          alert('Transfer cancelled.');
-        } else {
-          alert('File sent!');
-        }
+        sendNext();
       };
-      input.click();
+      reader.readAsArrayBuffer(file);
     }
 
-    socket.on('user-joined', async ({ id, username }) => {
-      if (username !== localUsername) {
-        addPeerCard(id, username);
-        const peer = createPeerConnection(id, username);
-        const offer = await peer.createOffer();
-        await peer.setLocalDescription(offer);
-        socket.emit('signal', { target: id, signal: { offer } });
+    const receiving = {};
+
+    function receiveChunk(peerId, chunk) {
+      if (!receiving[peerId]) {
+        receiving[peerId] = { chunks: [], size: 0, name: `File_from_${peerId}` };
+        receiving[peerId].card = createTransferCard(receiving[peerId].name, 0, false);
       }
-    });
+      const rec = receiving[peerId];
+      rec.chunks.push(chunk);
+      rec.size += chunk.byteLength;
+      updateProgress(rec.card, rec.size, null);
+    }
 
-    socket.on('signal', async ({ from, signal, username }) => {
-      if (username === localUsername) return;
+    function updateProgress(card, loaded, total) {
+      card.querySelector('.progress').textContent = total
+        ? `${((loaded / total) * 100).toFixed(1)}%`
+        : `${(loaded / 1024).toFixed(1)} KB received`;
+    }
 
-      let peerConn = peers[from]?.peer;
-      if (!peerConn) {
-        addPeerCard(from, username);
-        peerConn = createPeerConnection(from, username);
-        peers[from] = { peer: peerConn, chunks: [], meta: null, received: 0 };
-      }
-
-      if (signal.offer) {
-        await peerConn.setRemoteDescription(new RTCSessionDescription(signal.offer));
-        const answer = await peerConn.createAnswer();
-        await peerConn.setLocalDescription(answer);
-        socket.emit('signal', { target: from, signal: { answer } });
-      } else if (signal.answer) {
-        await peerConn.setRemoteDescription(new RTCSessionDescription(signal.answer));
-      } else if (signal.candidate) {
-        await peerConn.addIceCandidate(new RTCIceCandidate(signal.candidate));
-      }
-    });
-
-    socket.on('user-left', (id) => {
-      removePeerCard(id);
-      document.getElementById(`progress-${id}`)?.remove();
-      delete peers[id];
-      delete cancelFlags[id];
-    });
-
-    function createProgressBar(peerName, filename, id, isReceiving) {
-      const div = document.createElement('div');
-      div.className = 'file-progress';
-      div.id = `progress-${id}`;
-      div.innerHTML = `
-        <div>${isReceiving ? 'Receiving' : 'Sending'} <strong>${filename}</strong> ${isReceiving ? 'from' : 'to'} <strong>${peerName}</strong></div>
-        <div class="progress-bar"><div class="progress-bar-inner" id="bar-${id}"></div></div>
-        <button class="cancel-btn" onclick="cancelTransfer('${id}')">Cancel</button>
+    function createTransferCard(name, size, sending) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <div><strong>${name}</strong></div>
+        <div class="progress">0%</div>
+        <button class="cancel">Cancel</button>
       `;
-      document.getElementById('downloads').appendChild(div);
+      card.querySelector('.cancel').onclick = () => card.remove();
+      transfersEl.appendChild(card);
+      return card;
     }
 
-    function updateProgressBar(id, percent) {
-      const bar = document.getElementById(`bar-${id}`);
-      if (bar) bar.style.width = percent + '%';
+    function generateUsername() {
+      const words = ['fox', 'owl', 'eagle', 'cat', 'wolf', 'lion'];
+      const adj = ['fast', 'sly', 'wild', 'brave', 'calm'];
+      return `${adj[Math.floor(Math.random() * adj.length)]}-${words[Math.floor(Math.random() * words.length)]}`;
     }
 
-    function cancelTransfer(id) {
-      cancelFlags[id] = true;
-      document.getElementById(`progress-${id}`)?.remove();
-    }
+    window.sendFileTo = sendFileTo;
+
+    // Load SimplePeer
+    const sp = document.createElement('script');
+    sp.src = 'https://cdn.jsdelivr.net/npm/simple-peer@9/simplepeer.min.js';
+    document.body.appendChild(sp);
   </script>
 </body>
 </html>
