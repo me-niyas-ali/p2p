@@ -5,12 +5,13 @@
  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
  <title>P2P File Sharing</title>
  <style>
-* {
+  * {
    user-select: none;
    -webkit-user-select: none;
    -moz-user-select: none;
    -ms-user-select: none;
-   scrollbar-width: none;  /* Firefox */
+   scrollbar-width: none;
+   /* Firefox */
    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
    margin: 0;
    padding: 0;
@@ -159,27 +160,27 @@
  </style>
  <style>
   #toast {
-    position: fixed;
-    bottom: 30px;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: #333;
-    color: white;
-    padding: 12px 24px;
-    border-radius: 8px;
-    font-size: 16px;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.4s ease, bottom 0.4s ease;
-    z-index: 9999;
+   position: fixed;
+   bottom: 30px;
+   left: 50%;
+   transform: translateX(-50%);
+   background-color: #333;
+   color: white;
+   padding: 12px 24px;
+   border-radius: 8px;
+   font-size: 16px;
+   opacity: 0;
+   pointer-events: none;
+   transition: opacity 0.4s ease, bottom 0.4s ease;
+   z-index: 9999;
   }
 
   #toast.show {
-    opacity: 1;
-    bottom: 50px;
-    pointer-events: auto;
+   opacity: 1;
+   bottom: 50px;
+   pointer-events: auto;
   }
-</style>
+ </style>
 
 </head>
 <body>
@@ -334,7 +335,7 @@
 
   sendBtn.onclick = () => {
    if (!fileInput.files.length || !joined) {
-    showToast("Select a file first");
+    showToast("Join room and select file first");
     return;
    }
 
@@ -356,11 +357,18 @@
 
    ui.cancelBtn.onclick = () => {
     sendingCancelled = true;
+
+    // Abort any in-progress FileReader read
+    if (sendFileReader && sendFileReader.readyState === FileReader.LOADING) {
+     sendFileReader.abort();
+    }
+
     socket.emit("send-cancel-transfer", {
      roomId,
      fileName: sendFile.name,
      transferId: currentTransferId
     });
+
     sendFileReader = null;
     sendOffset = sendFile.size;
     sendFilesDisplay.removeChild(ui.card);
@@ -477,16 +485,16 @@
   let toastTimeout;
 
   function showToast(message) {
-    const toast = document.getElementById('toast');
-    toast.textContent = message;
-    toast.classList.add('show');
+   const toast = document.getElementById('toast');
+   toast.textContent = message;
+   toast.classList.add('show');
 
-    clearTimeout(toastTimeout);
-    toastTimeout = setTimeout(() => {
-      toast.classList.remove('show');
-    }, 3000);
+   clearTimeout(toastTimeout);
+   toastTimeout = setTimeout(() => {
+    toast.classList.remove('show');
+   }, 3000);
   }
-</script>
+ </script>
 
 </body>
 </html>
