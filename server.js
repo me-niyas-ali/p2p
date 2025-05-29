@@ -1,23 +1,28 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const cors = require('cors'); // ✅ Import CORS
 const path = require('path');
-const cors = require('cors');
 
 const app = express();
 const server = http.createServer(app);
 
-// Allow CORS for specific frontend domain
+// ✅ Allow CORS from your frontend domain
 const io = new Server(server, {
   cors: {
-    origin: '*',
+    origin: "https://me-niyas-ali.github.io", // 🔁 replace with your frontend URL
+    methods: ["GET", "POST"]
   }
 });
 
+// ✅ Apply CORS to Express routes too (if needed)
+app.use(cors({
+  origin: "https://me-niyas-ali.github.io"
+}));
+
 const rooms = {};
 
-// Allow API routes to be accessed from your frontend
-app.use(cors({ origin: '*' })); // same domain as above
+app.use(express.static(path.join(__dirname, 'public')));
 
 io.on('connection', socket => {
   socket.on('join-room', roomId => {
