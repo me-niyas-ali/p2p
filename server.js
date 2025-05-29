@@ -10,7 +10,7 @@ const server = http.createServer(app);
 // Allow CORS for specific frontend domain
 const io = new Server(server, {
   cors: {
-    origin: 'https://me-niyas-ali.github.io',
+    origin: 'https://me-niyas-ali.github.io/p2p/',
     methods: ['GET', 'POST']
   }
 });
