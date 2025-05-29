@@ -235,6 +235,7 @@
    if (!joined) {
     roomId = roomIdInput.value.trim();
     if (roomId.length !== 4) return alert("Enter a 4-digit room code");
+    showToast("Enter a 4-digit room code");
     socket.emit("join-room", roomId);
    } else {
     socket.emit("leave-room", roomId);
