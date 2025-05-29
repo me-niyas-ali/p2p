@@ -391,7 +391,7 @@
 
   sendBtn.onclick = () => {
    if (!fileInput.files.length || !joined) {
-    showToast("Join room and select file first", "info");
+    showToast("Join room and select file first", "info", { duration: 80000, dismissible: true });
     return;
    }
 
@@ -537,31 +537,47 @@
   });
  </script>
  <script>
-  function showToast(message, type = 'info') {
-   const container = document.getElementById('toast-container');
+  function showToast(message, type = 'info', options = {}) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
 
-   const toast = document.createElement('div');
-   toast.className = `toast ${type}`;
+    const icons = {
+      success: '✔️',
+      error: '❌',
+      info: 'ℹ️'
+    };
 
-   // Icon based on type
-   const icons = {
-    success: '✔️',
-    error: '❌',
-    info: 'ℹ️'
-   };
+    const { duration = 4000, dismissible = false } = options;
 
-   toast.innerHTML = `<i>${icons[type] || 'ℹ️'}</i> <span> ${message}</span>`;
-   container.appendChild(toast);
+    // Build toast content
+    let innerHTML = `<i>${icons[type] || 'ℹ️'}</i><span>${message}</span>`;
 
-   // Remove after animation
-   setTimeout(() => {
-    toast.remove();
-   }, 4000); // match fadeOut timing
+    if (dismissible) {
+      innerHTML += `<button style="margin-left:auto; background:none; border:none; color:white; font-size:18px; cursor:pointer;" onclick="this.parentElement.remove()">✖</button>`;
+    }
+
+    toast.innerHTML = innerHTML;
+    container.appendChild(toast);
+
+    // Override animation delay dynamically
+    toast.style.animation = `slideIn 0.4s ease forwards, fadeOut 0.5s ease forwards ${duration - 1000}ms`;
+
+    // Auto remove
+    const autoRemove = setTimeout(() => {
+      if (toast.parentElement) toast.remove();
+    }, duration);
+
+    // Optional: cancel timeout on manual dismiss
+    if (dismissible) {
+      toast.querySelector('button').addEventListener('click', () => clearTimeout(autoRemove));
+    }
   }
- </script>
+</script>
+
 <script>
   document.getElementById("testbtn").addEventListener("click", function () {
-    showToast("toast test", "info");
+    showToast("toast test", "info", { duration: 8000, dismissible: true });
   });
 </script>
 </body>
