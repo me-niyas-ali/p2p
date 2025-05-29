@@ -364,6 +364,7 @@
     sendFileReader = null;
     sendOffset = sendFile.size;
     sendFilesDisplay.removeChild(ui.card);
+    showToast("Transfer cancelled");
     sendBtn.disabled = false;
    };
 
@@ -388,6 +389,7 @@
     if (sendOffset < sendFile.size) sendChunk();
     else {
      ui.status.textContent = 'Upload complete';
+     showToast("Upload completed");
      ui.status.style.color = '#22c55e';
      sendBtn.disabled = false;
      ui.cancelBtn.remove();
@@ -443,6 +445,7 @@
      ui.status.style.color = '#22c55e';
      ui.progressBar.parentElement.style.display = 'none';
      ui.cancelBtn.remove();
+     showToast("File received");
      ui.downloadBtn.style.display = 'block';
     }
    });
@@ -459,6 +462,7 @@
 
       if (status) {
        status.textContent = 'Cancelled by sender';
+       showToast("Cancelled by sender");
        status.style.color = '#ef4444';
       }
       if (progressBar) {
