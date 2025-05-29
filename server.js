@@ -12,9 +12,10 @@ const rooms = {};
 app.use(express.static(path.join(__dirname, 'public')));
 
 io.on('connection', socket => {
-  socket.on('join-room', roomId => {
+  socket.on("join-room", (roomId) => {
     socket.join(roomId);
-    rooms[socket.id] = roomId;
+    socket.to(roomId).emit("user-joined", { socketId: socket.id });
+
 
     const devices = io.sockets.adapter.rooms.get(roomId)?.size || 0;
     socket.emit('room-joined', { roomId, devices });
