@@ -243,9 +243,18 @@
    }
   };
 
-  socket.on("disconnect", () => {
+  socket.on("disconnect", (reason) => {
    resetState();
+
+   if (reason === "io server disconnect") {
+    showToast("Disconnected by server");
+   } else if (reason === "io client disconnect") {
+    showToast("Disconnected from client (tab/browser closed)");
+   } else {
+    showToast(`Disconnected: ${reason}`);
+   }
   });
+
 
   function formatBytes(bytes) {
    const sizes = ['Bytes',
@@ -270,7 +279,6 @@
    joinBtn.classList.remove("bg-error");
    roomDisplay.textContent = "- - - -";
    deviceDisplay.textContent = "0";
-   location.reload();
   }
 
   socket.on("room-joined", (data) => {
