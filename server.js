@@ -20,10 +20,8 @@ io.on('connection', socket => {
     socket.emit('room-joined', { roomId, devices });
     io.to(roomId).emit('room-updated', { devices });
 
-    // Notify others in the room about the new user joining (multiline message)
-    socket.to(roomId).emit('user-joined-toast', {
-      message: `A user joined the room\n(${devices} users now)`
-    });
+    // Notify others in the room about the new user joining (except the joining user)
+    socket.to(roomId).emit('user-joined-toast', { message: `A user joined the room (${devices} users now)` });
   });
 
   socket.on('leave-room', roomId => {
@@ -32,10 +30,8 @@ io.on('connection', socket => {
     const devices = io.sockets.adapter.rooms.get(roomId)?.size || 0;
     io.to(roomId).emit('room-updated', { devices });
 
-    // Notify remaining users someone left (multiline message)
-    io.to(roomId).emit('user-left-toast', {
-      message: `A user left the room\n(${devices} users now)`
-    });
+    // Notify remaining users someone left
+    io.to(roomId).emit('user-left-toast', { message: `A user left the room (${devices} users now)` });
   });
 
   socket.on('send-file-meta', ({ roomId, metadata }) => {
@@ -57,10 +53,8 @@ io.on('connection', socket => {
       const devices = io.sockets.adapter.rooms.get(roomId)?.size || 0;
       io.to(roomId).emit('room-updated', { devices });
 
-      // Notify remaining users someone disconnected (multiline message)
-      io.to(roomId).emit('user-left-toast', {
-        message: `A user left the room\n(${devices} users now)`
-      });
+      // Notify remaining users someone disconnected
+      io.to(roomId).emit('user-left-toast', { message: `A user left the room (${devices} users now)` });
     }
   });
 });
