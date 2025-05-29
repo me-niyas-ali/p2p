@@ -235,7 +235,6 @@
    if (!joined) {
     roomId = roomIdInput.value.trim();
     if (roomId.length !== 4) return alert("Enter a 4-digit room code");
-    showToast("Enter a 4-digit room code);
     socket.emit("join-room", roomId);
    } else {
     socket.emit("leave-room", roomId);
@@ -265,6 +264,7 @@
    sendOffset = 0;
    sendFile = null;
    currentTransferId = null;
+   showToast("Left from room");
    joinBtn.textContent = "Join Room";
    joinBtn.classList.remove("bg-error");
    roomDisplay.textContent = "----";
@@ -278,6 +278,7 @@
    roomDisplay.textContent = data.roomId;
    deviceDisplay.textContent = data.devices;
    joinBtn.textContent = "Exit Room";
+   showToast("Joined a room");
    joinBtn.classList.add("bg-error");
   });
 
