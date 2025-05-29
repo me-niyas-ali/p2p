@@ -1,37 +1,39 @@
-const express = require("express");
-const http = require("http");
-const cors = require("cors");
-const { Server } = require("socket.io");
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const cors = require('cors');
 
 const app = express();
 app.use(cors());
+
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*"
+    origin: "*",
   }
 });
 
-let clients = {};
+const peers = new Set();
 
-io.on("connection", socket => {
-  socket.on("join", name => {
-    clients[socket.id] = name;
-    io.emit("peer-list", Object.values(clients));
+io.on('connection', (socket) => {
+  socket.on('register-peer', (peerId) => {
+    socket.peerId = peerId;
+    peers.add(peerId);
+    io.emit('peer-list', Array.from(peers));
   });
 
-  socket.on("signal", ({ to, from, data }) => {
-    const targetSocketId = Object.keys(clients).find(id => clients[id] === to);
-    if (targetSocketId) {
-      io.to(targetSocketId).emit("signal", { from, data });
+  socket.on('get-peers', () => {
+    io.emit('peer-list', Array.from(peers));
+  });
+
+  socket.on('disconnect', () => {
+    if (socket.peerId) {
+      peers.delete(socket.peerId);
+      io.emit('peer-list', Array.from(peers));
     }
-  });
-
-  socket.on("disconnect", () => {
-    delete clients[socket.id];
-    io.emit("peer-list", Object.values(clients));
   });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log("Server running on port " + PORT));
+server.listen(process.env.PORT || 3000, () => {
+  console.log('Server running...');
+});
