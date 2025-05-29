@@ -174,8 +174,8 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    min-width: 240px;
-    max-width: 350px;
+    min-width: 40%;
+    max-width: 80%;
     background-color: #333;
     color: white;
     padding: 10px 12px;
@@ -368,7 +368,7 @@
    if (!isSender) {
     downloadBtn = document.createElement('button');
     downloadBtn.className = 'download-btn';
-    downloadBtn.textContent = 'Download';
+    downloadBtn.textContent = 'Download File';
     downloadBtn.style.display = 'none';
     card.appendChild(downloadBtn);
    }
@@ -499,8 +499,6 @@
     ui.progressBar.style.width = `${(receivedSize / metadata.size) * 100}%`;
 
     if (receivedSize >= metadata.size) {
-     ui.status.textContent = 'Download complete';
-     ui.status.style.color = '#22c55e';
      ui.progressBar.parentElement.style.display = 'none';
      ui.cancelBtn.remove();
      showToast("File received", "success");
