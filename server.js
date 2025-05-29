@@ -7,7 +7,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "https://me-niyas-ali.github.io", // Frontend URL
+    origin: "https://me-niyas-ali.github.io/p2p", // Frontend URL
     methods: ["GET", "POST"]
   }
 });
