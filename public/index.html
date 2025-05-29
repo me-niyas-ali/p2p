@@ -267,7 +267,7 @@
    showToast("Left from room");
    joinBtn.textContent = "Join Room";
    joinBtn.classList.remove("bg-error");
-   roomDisplay.textContent = "----";
+   roomDisplay.textContent = "- - - -";
    deviceDisplay.textContent = "0";
    location.reload();
   }
@@ -334,7 +334,7 @@
 
   sendBtn.onclick = () => {
    if (!fileInput.files.length || !joined) {
-    alert("Select a file and join a room first");
+    showToast("Select a file first");
     return;
    }
 
