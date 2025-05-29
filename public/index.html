@@ -284,7 +284,7 @@
   joinBtn.onclick = () => {
    if (!joined) {
     roomId = roomIdInput.value.trim();
-    if (roomId.length !== 4) return showToast("Enter a 4-digit room code", "info");
+    if (roomId.length !== 4) return showToast("Enter 4-digit room code", "info");
     socket.emit("join-room", roomId);
    } else {
     socket.emit("leave-room", roomId);
@@ -329,7 +329,7 @@
    sendOffset = 0;
    sendFile = null;
    currentTransferId = null;
-   showToast("Left from room", "error");
+   showToast("Left room", "error");
    joinBtn.textContent = "Join Room";
    joinBtn.classList.remove("bg-error");
    roomDisplay.textContent = "- - - -";
@@ -354,13 +354,13 @@
   socket.on('user-joined-toast', ({
    devices
   }) => {
-   showToast(`A user joined the room (${devices} Connected)`);
+   showToast(`A user joined, ${devices} Connected`);
   });
 
   socket.on('user-left-toast', ({
    devices
   }) => {
-   showToast(`A user left the room (${devices} Connected)`);
+   showToast(`A user left, ${devices} Connected`);
   });
 
 
@@ -412,7 +412,7 @@
 
   sendBtn.onclick = () => {
    if (!fileInput.files.length || !joined) {
-    showToast("Join room and select file first", "info", {
+    showToast("Join a room or select a file first", "info", {
      duration: 80000, dismissible: true
     });
     return;
