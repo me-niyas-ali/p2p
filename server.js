@@ -2,14 +2,26 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const cors = require('cors');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+
+// Allow CORS for specific frontend domain
+const io = new Server(server, {
+  cors: {
+    origin: 'https://me-niyas-ali.github.io',
+    methods: ['GET', 'POST']
+  }
+});
 
 const rooms = {};
 
+// Serve static files if needed
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Allow API routes to be accessed from your frontend
+app.use(cors({ origin: 'https://me-niyas-ali.github.io' })); // same domain as above
 
 io.on('connection', socket => {
   socket.on('join-room', roomId => {
