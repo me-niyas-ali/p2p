@@ -17,7 +17,7 @@ const io = new Server(server, {
 const rooms = {};
 
 // Allow API routes to be accessed from your frontend
-app.use(cors({ origin: 'https://me-niyas-ali.github.io/p2p/' })); // same domain as above
+app.use(cors({ origin: '*' })); // same domain as above
 
 io.on('connection', socket => {
   socket.on('join-room', roomId => {
