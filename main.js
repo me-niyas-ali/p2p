@@ -1,10 +1,10 @@
-const socket = io("https://your-backend-url.onrender.com"); // Replace with your backend Render URL
+const socket = io("https://p2p-share-7wvh.onrender.com"); // Replace with your backend Render URL
 const username = generateUsername();
 let peers = {};
 let selectedFiles = [];
 
 function generateUsername() {
-  const words = ["fast", "cool", "bright", "sharp", "dark", "light", "loud", "silent"];
+  const words = ["fast", "cool", "fun", "sharp", "pink", "light", "red", "sun"];
   return `${words[Math.floor(Math.random()*words.length)]}-${words[Math.floor(Math.random()*words.length)]}`;
 }
 
