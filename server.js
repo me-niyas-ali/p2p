@@ -17,21 +17,25 @@ io.on('connection', socket => {
     rooms[socket.id] = roomId;
 
     const devices = io.sockets.adapter.rooms.get(roomId)?.size || 0;
+
+    // Emit to joining user
     socket.emit('room-joined', { roomId, devices });
+
+    // Emit to all users in room (including joining user)
     io.to(roomId).emit('room-updated', { devices });
 
-    // Notify others in the room (except the joining user)
-    socket.to(roomId).emit('user-joined-toast');
+    // Notify others in the room (excluding the joining user)
+    socket.to(roomId).emit('user-joined-toast', { devices });
   });
 
   socket.on('leave-room', roomId => {
     socket.leave(roomId);
     delete rooms[socket.id];
-    const devices = io.sockets.adapter.rooms.get(roomId)?.size || 0;
-    io.to(roomId).emit('room-updated', { devices });
 
-    // Notify all in the room
-    io.to(roomId).emit('user-left-toast');
+    const devices = io.sockets.adapter.rooms.get(roomId)?.size || 0;
+
+    io.to(roomId).emit('room-updated', { devices });
+    io.to(roomId).emit('user-left-toast', { devices });
   });
 
   socket.on('send-file-meta', ({ roomId, metadata }) => {
@@ -52,9 +56,7 @@ io.on('connection', socket => {
       delete rooms[socket.id];
       const devices = io.sockets.adapter.rooms.get(roomId)?.size || 0;
       io.to(roomId).emit('room-updated', { devices });
-
-      // Notify all in the room
-      io.to(roomId).emit('user-left-toast');
+      io.to(roomId).emit('user-left-toast', { devices });
     }
   });
 });
