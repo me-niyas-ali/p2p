@@ -467,5 +467,20 @@
     });
   });
  </script>
+ <script>
+  let toastTimeout;
+
+  function showToast(message) {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.classList.add('show');
+
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => {
+      toast.classList.remove('show');
+    }, 3000);
+  }
+</script>
+
 </body>
 </html>
