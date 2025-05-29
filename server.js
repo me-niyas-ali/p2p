@@ -1,46 +1,109 @@
 // server.js
-const express = require('express');
+
+const WebSocket = require('ws');
 const http = require('http');
-const { Server } = require('socket.io');
-const cors = require('cors');
 
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: 'https://me-niyas-ali.github.io',
-    methods: ['GET', 'POST']
-  }
-});
+const PORT = process.env.PORT || 3000;
 
-const rooms = {};
+const server = http.createServer();
+const wss = new WebSocket.Server({ server });
 
-io.on('connection', (socket) => {
-  socket.on('join-room', (roomId) => {
-    socket.join(roomId);
-    if (!rooms[roomId]) rooms[roomId] = [];
-    rooms[roomId].push(socket.id);
-    
-    const isHost = rooms[roomId][0] === socket.id;
-    io.to(socket.id).emit('room-joined', { host: isHost, peerId: socket.id });
-    io.to(roomId).emit('peer-count', rooms[roomId].length);
+/**
+ * Rooms structure:
+ * {
+ *   roomId: {
+ *     clients: Map(clientId -> ws),
+ *   }
+ * }
+ */
+const rooms = new Map();
 
-    socket.on('leave-room', () => {
-      socket.leave(roomId);
-      rooms[roomId] = rooms[roomId].filter(id => id !== socket.id);
-      io.to(roomId).emit('peer-count', rooms[roomId].length);
-    });
+function generateClientId() {
+  return Math.random().toString(36).substr(2, 9);
+}
 
-    socket.on('disconnect', () => {
-      if (rooms[roomId]) {
-        rooms[roomId] = rooms[roomId].filter(id => id !== socket.id);
-        io.to(roomId).emit('peer-count', rooms[roomId].length);
+wss.on('connection', (ws) => {
+  let currentRoom = null;
+  let clientId = generateClientId();
+
+  ws.on('message', (message) => {
+    try {
+      const msg = JSON.parse(message);
+
+      if (msg.type === 'join') {
+        const roomId = msg.data.roomId;
+        if (!rooms.has(roomId)) {
+          rooms.set(roomId, {
+            clients: new Map(),
+          });
+        }
+        currentRoom = roomId;
+        const room = rooms.get(roomId);
+        room.clients.set(clientId, ws);
+
+        // Send back joined info + clients list
+        const otherClients = Array.from(room.clients.keys()).filter(id => id !== clientId);
+
+        ws.send(JSON.stringify({
+          type: 'joined',
+          data: {
+            clientId,
+            clients: otherClients,
+          },
+        }));
+
+        // Notify others of new peer
+        otherClients.forEach(id => {
+          const client = room.clients.get(id);
+          if (client && client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({
+              type: 'new-peer',
+              data: { clientId },
+            }));
+          }
+        });
+
+      } else if (msg.type === 'signal') {
+        // Relay signaling messages to target peer
+        const { target, from, sdp, ice } = msg.data;
+        if (!currentRoom) return;
+        const room = rooms.get(currentRoom);
+        if (!room) return;
+        const targetClient = room.clients.get(target);
+        if (targetClient && targetClient.readyState === WebSocket.OPEN) {
+          targetClient.send(JSON.stringify({
+            type: 'signal',
+            data: { from, sdp, ice },
+          }));
+        }
       }
-    });
+    } catch (e) {
+      console.error('Error processing message:', e);
+    }
+  });
+
+  ws.on('close', () => {
+    if (currentRoom) {
+      const room = rooms.get(currentRoom);
+      if (room) {
+        room.clients.delete(clientId);
+        // Notify remaining peers
+        room.clients.forEach((clientWs, id) => {
+          if (clientWs.readyState === WebSocket.OPEN) {
+            clientWs.send(JSON.stringify({
+              type: 'peer-left',
+              data: { clientId },
+            }));
+          }
+        });
+        if (room.clients.size === 0) {
+          rooms.delete(currentRoom);
+        }
+      }
+    }
   });
 });
 
-const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server listening on port ${PORT}`);
 });
