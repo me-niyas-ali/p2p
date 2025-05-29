@@ -3,99 +3,33 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>P2P File Sharing</title>
-  <style>
-    body { font-family: Arial, sans-serif; background: #f0f0f0; margin: 0; padding: 20px; }
-    h1 { text-align: center; }
-    #peers, #transfers { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
-    .card { background: #fff; padding: 10px; border-radius: 5px; box-shadow: 0 0 5px rgba(0,0,0,0.1); width: 200px; }
-    .card button { margin-top: 10px; }
-    .offline { opacity: 0.5; }
-    #fileInput { margin-top: 20px; }
-  </style>
+  <title>P2P File Share</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <h1>P2P File Sharing</h1>
-  <input type="file" id="fileInput" />
-  <div id="peers"></div>
-  <div id="transfers"></div>
+  <h2 class="app-title">P2P File Sharing</h2>
+  <div id="peerList" class="peer-container"></div>
+  <div class="actions">
+    <input type="file" id="fileInput" multiple hidden />
+    <button onclick="document.getElementById('fileInput').click()">Select Files</button>
+    <button id="sendBtn" disabled>Send Files</button>
+  </div>
+  <div id="fileTransfers"></div>
+
+  <!-- Toasts -->
+  <div id="toast"></div>
+
+  <!-- Confirm Modal -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-content">
+      <p id="modalText">Accept incoming file?</p>
+      <button id="acceptBtn">Accept</button>
+      <button id="rejectBtn">Reject</button>
+    </div>
+  </div>
 
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/simple-peer@9/simplepeer.min.js"></script>
-  <script>
-    const socket = io('https://your-backend-url.com'); // Replace with your backend URL
-    const peersEl = document.getElementById('peers');
-    const transfersEl = document.getElementById('transfers');
-    const fileInput = document.getElementById('fileInput');
-
-    const peers = {};
-    const connections = {};
-    const myUsername = 'User-' + Math.floor(Math.random() * 1000);
-
-    socket.emit('register', myUsername);
-
-    socket.on('peer-list', (peerList) => {
-      peersEl.innerHTML = '';
-      peerList.forEach(peer => {
-        peers[peer.id] = peer;
-        const card = document.createElement('div');
-        card.className = 'card' + (peer.online ? '' : ' offline');
-        card.innerHTML = `<strong>${peer.username}</strong><br/>
-          <button onclick="connectToPeer('${peer.id}')">Connect</button>`;
-        peersEl.appendChild(card);
-      });
-    });
-
-    socket.on('signal', async ({ fromId, signal }) => {
-      if (!connections[fromId]) {
-        createConnection(fromId, false);
-      }
-      connections[fromId].signal(signal);
-    });
-
-    function createConnection(peerId, initiator) {
-      const conn = new SimplePeer({ initiator, trickle: false });
-      connections[peerId] = conn;
-
-      conn.on('signal', signal => {
-        socket.emit('signal', { targetId: peerId, signal });
-      });
-
-      conn.on('connect', () => {
-        console.log(`Connected to ${peerId}`);
-      });
-
-      conn.on('data', data => {
-        const blob = new Blob([data]);
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'received_file';
-        a.textContent = 'Download received file';
-        transfersEl.appendChild(a);
-      });
-
-      conn.on('error', err => console.error(err));
-    }
-
-    function connectToPeer(peerId) {
-      if (!connections[peerId]) {
-        createConnection(peerId, true);
-      }
-    }
-
-    fileInput.addEventListener('change', () => {
-      const file = fileInput.files[0];
-      if (!file) return;
-
-      Object.values(connections).forEach(conn => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          conn.send(reader.result);
-        };
-        reader.readAsArrayBuffer(file);
-      });
-    });
-  </script>
+  <script src="https://cdn.jsdelivr.net/npm/simple-peer@9.11.1/simplepeer.min.js"></script>
+  <script src="main.js"></script>
 </body>
 </html>
