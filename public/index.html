@@ -266,6 +266,19 @@
    return parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) + ' ' + sizes[i];
   }
 
+  socket.on('user-joined-toast', ({
+   message
+  }) => {
+   showToast(message);
+  });
+
+  socket.on('user-left-toast', ({
+   message
+  }) => {
+   showToast(message);
+  });
+
+
   function resetState() {
    joined = false;
    roomId = '';
