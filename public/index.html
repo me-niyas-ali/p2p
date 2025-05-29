@@ -537,61 +537,32 @@
   });
  </script>
  <script>
-  function showToast(message, type = 'info', options = {}) {
-    const container = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
+  function showToast(message, type = 'info') {
+   const container = document.getElementById('toast-container');
 
-    const icons = {
-      success: '✔️',
-      error: '❌',
-      info: 'ℹ️'
-    };
+   const toast = document.createElement('div');
+   toast.className = `toast ${type}`;
 
-    // Main content
-    const content = document.createElement('div');
-    content.style.display = 'flex';
-    content.style.alignItems = 'center';
-    content.style.gap = '10px';
-    content.innerHTML = `<i>${icons[type] || 'ℹ️'}</i> <span>${message}</span>`;
-    toast.appendChild(content);
+   // Icon based on type
+   const icons = {
+    success: '✔️',
+    error: '❌',
+    info: 'ℹ️'
+   };
 
-    // Optional dismiss button
-    if (options.dismissible) {
-      const closeBtn = document.createElement('button');
-      closeBtn.textContent = '✖';
-      closeBtn.style.marginLeft = 'auto';
-      closeBtn.style.background = 'none';
-      closeBtn.style.border = 'none';
-      closeBtn.style.color = 'white';
-      closeBtn.style.cursor = 'pointer';
-      closeBtn.style.fontSize = '16px';
-      closeBtn.addEventListener('click', () => toast.remove());
-      toast.appendChild(closeBtn);
-    }
+   toast.innerHTML = `<i>${icons[type] || 'ℹ️'}</i> <span> ${message}</span>`;
+   container.appendChild(toast);
 
-    // Duration (default 4000 ms)
-    const duration = options.duration || 4000;
-
-    // Dynamically apply fadeOut timing to match duration
-    toast.style.animation = `slideIn 0.4s ease forwards, fadeOut 0.5s ease forwards ${duration - 500}ms`;
-
-    container.appendChild(toast);
-
-    // Auto-remove after duration
-    setTimeout(() => {
-      toast.remove();
-    }, duration);
+   // Remove after animation
+   setTimeout(() => {
+    toast.remove();
+   }, 4000); // match fadeOut timing
   }
-</script>
-
+ </script>
 <script>
   document.getElementById("testbtn").addEventListener("click", function () {
-    showToast("toast test", "info", 8000);
+    showToast("toast test", "info");
   });
 </script>
-
-
-
 </body>
 </html>
