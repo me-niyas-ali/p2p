@@ -21,7 +21,7 @@ const rooms = {};
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Allow API routes to be accessed from your frontend
-app.use(cors({ origin: 'https://me-niyas-ali.github.io' })); // same domain as above
+app.use(cors({ origin: 'https://me-niyas-ali.github.io/p2p/' })); // same domain as above
 
 io.on('connection', socket => {
   socket.on('join-room', roomId => {
