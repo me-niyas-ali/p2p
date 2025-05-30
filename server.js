@@ -2,14 +2,32 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const cors = require('cors');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
 
+// Enable CORS for Socket.IO
+const io = new Server(server, {
+  cors: {
+    origin: '*', // Allow all origins
+    methods: ['GET', 'POST']
+  }
+});
+
+// In-memory storage for socket-room mapping
 const rooms = {};
 
-app.use(express.static(path.join(__dirname, 'public')));
+// Enable CORS for Express
+app.use(cors());
+
+// Serve static files from root directory
+app.use(express.static(path.join(__dirname)));
+
+// Fallback to index.html for any unrecognized route (for SPAs)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 io.on('connection', socket => {
   socket.on('join-room', roomId => {
@@ -18,13 +36,8 @@ io.on('connection', socket => {
 
     const devices = io.sockets.adapter.rooms.get(roomId)?.size || 0;
 
-    // Emit to joining user
     socket.emit('room-joined', { roomId, devices });
-
-    // Emit to all users in room (including joining user)
     io.to(roomId).emit('room-updated', { devices });
-
-    // Notify others in the room (excluding the joining user)
     socket.to(roomId).emit('user-joined-toast', { devices });
   });
 
@@ -33,7 +46,6 @@ io.on('connection', socket => {
     delete rooms[socket.id];
 
     const devices = io.sockets.adapter.rooms.get(roomId)?.size || 0;
-
     io.to(roomId).emit('room-updated', { devices });
     io.to(roomId).emit('user-left-toast', { devices });
   });
