@@ -5,12 +5,13 @@
  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
  <title>P2P File Sharing</title>
  <style>
-* {
+  * {
    user-select: none;
    -webkit-user-select: none;
    -moz-user-select: none;
    -ms-user-select: none;
-   scrollbar-width: none;  /* Firefox */
+   scrollbar-width: none;
+   /* Firefox */
    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
    margin: 0;
    padding: 0;
@@ -82,7 +83,7 @@
    border: 1px solid #ccc;
   }
 
-  button {
+  .button {
    padding: 10px;
    margin-top: 10px;
    font-size: 16px;
@@ -93,7 +94,7 @@
    cursor: pointer;
   }
 
-  button.bg-error {
+  .button.bg-error {
    background-color: #f44336;
   }
 
@@ -157,6 +158,70 @@
    cursor: pointer;
   }
  </style>
+ <style>
+  #toast-container {
+   position: fixed;
+   bottom: 20px;
+   right: 12px;
+   display: flex;
+   flex-direction: column;
+   gap: 8px;
+   z-index: 9999;
+  }
+
+  .toast {
+   display: flex;
+   align-items: center;
+   gap: 10px;
+   min-width: 250px;
+   max-width: 500px;
+   background-color: white;
+   color: black;
+   padding: 6px 8px;
+   border-radius: 8px;
+   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+   font-size: 15px;
+   opacity: 0;
+   transform: translateX(30px);
+   animation: slideIn 0.4s ease forwards, fadeOut 0.2s ease forwards 2s;
+  }
+
+  .dismiss-btn {
+   margin: 0px;
+   padding: inherit;
+   background-color: white;
+   border: 1px solid black;
+   border-radius: 8px;
+   color: white;
+   font-size: 18px;
+   cursor: pointer;
+  }
+
+  .toast.success {
+   border: 2px solid #28a745;
+  }
+  .toast.error {
+   border: 2px solid #dc3545;
+  }
+  .toast.info {
+   border: 2px solid #007bff;
+  }
+
+@keyframes slideIn {
+   to {
+    opacity: 1;
+    transform: translateX(0);
+   }
+  }
+
+@keyframes fadeOut {
+   to {
+    opacity: 0;
+    transform: translateX(30px);
+   }
+  }
+ </style>
+
 </head>
 <body>
  <center>
@@ -171,23 +236,33 @@
     </div>
    </div>
    <div class="btn-container">
-    <input class="input" type="number" id="roomIdinput" placeholder="Enter Room Code (4-digit)" maxlength="4" />
+    <input class="input" type="number" id="roomIdinput" placeholder="Enter Room Code (4-digit)" />
     <button class="button" id="joinBtn">Join Room</button>
    </div>
    <div class="btn-container">
     <input class="input" type="file" id="fileInput" />
-    <button id="sendBtn">Send</button>
+    <button class="button"id="sendBtn">Send</button>
    </div>
-
+   <!--button class="button" id="testbtn">Test Toast</button-->
    <div id="sendFilesDisplay" class="file-display-area"></div>
    <div id="receivedFilesDisplay" class="file-display-area"></div>
   </div>
-  <div id="toast"></div>
+  <div id="toast-container"></div>
  </center>
 
  <script src="/socket.io/socket.io.js"></script>
+ <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+  const input = document.getElementById('roomIdinput');
+  input.addEventListener('input', () => {
+    if (input.value.length > 4) {
+      input.value = input.value.slice(0, 4);
+    }
+  });
+</script>
+
  <script>
-  const socket = io();
+  const socket = io('https://p2p-share-7wvh.onrender.com');
   const roomIdInput = document.getElementById("roomIdinput");
   const roomDisplay = document.getElementById("roomId");
   const deviceDisplay = document.getElementById("connectedDevice");
@@ -210,7 +285,7 @@
   joinBtn.onclick = () => {
    if (!joined) {
     roomId = roomIdInput.value.trim();
-    if (roomId.length !== 4) return alert("Enter a 4-digit room code");
+    if (roomId.length !== 4) return showToast("Enter 4-digit room code", "info");
     socket.emit("join-room", roomId);
    } else {
     socket.emit("leave-room", roomId);
@@ -218,9 +293,24 @@
    }
   };
 
-  socket.on("disconnect", () => {
+  socket.on("disconnect", (reason) => {
    resetState();
+
+   if (reason === "io server disconnect") {
+    showToast("Disconnected by server", "error", {
+     duration: 99999999, dismissible: true
+    });
+   } else if (reason === "io client disconnect") {
+    showToast("Disconnected from client (tab/browser closed)", "error", {
+     duration: 99999999, dismissible: true
+    });
+   } else {
+    showToast(`Disconnected: ${reason}`, "error", {
+     duration: 99999999, dismissible: true
+    });
+   }
   });
+
 
   function formatBytes(bytes) {
    const sizes = ['Bytes',
@@ -240,11 +330,11 @@
    sendOffset = 0;
    sendFile = null;
    currentTransferId = null;
+   showToast("Left room", "error");
    joinBtn.textContent = "Join Room";
    joinBtn.classList.remove("bg-error");
-   roomDisplay.textContent = "----";
+   roomDisplay.textContent = "- - - -";
    deviceDisplay.textContent = "0";
-   location.reload();
   }
 
   socket.on("room-joined", (data) => {
@@ -253,12 +343,27 @@
    roomDisplay.textContent = data.roomId;
    deviceDisplay.textContent = data.devices;
    joinBtn.textContent = "Exit Room";
+   showToast("Joined a room", "success");
    joinBtn.classList.add("bg-error");
   });
 
   socket.on("room-updated", (data) => {
    deviceDisplay.textContent = data.devices;
   });
+
+  // 🔔 Toast notifications
+  socket.on('user-joined-toast', ({
+   devices
+  }) => {
+   showToast(`A user joined, ${devices} Connected`);
+  });
+
+  socket.on('user-left-toast', ({
+   devices
+  }) => {
+   showToast(`A user left, ${devices} Connected`);
+  });
+
 
   function createFileCard(displayArea, metadata, isSender) {
    const card = document.createElement('div');
@@ -291,7 +396,7 @@
    if (!isSender) {
     downloadBtn = document.createElement('button');
     downloadBtn.className = 'download-btn';
-    downloadBtn.textContent = 'Download';
+    downloadBtn.textContent = 'Download File';
     downloadBtn.style.display = 'none';
     card.appendChild(downloadBtn);
    }
@@ -308,12 +413,11 @@
 
   sendBtn.onclick = () => {
    if (!fileInput.files.length || !joined) {
-    alert("Select a file and join a room first");
+    showToast("Join a room or select a file first", "info");
     return;
    }
 
    sendBtn.disabled = true;
-
    sendFile = fileInput.files[0];
    sendOffset = 0;
    sendingCancelled = false;
@@ -330,14 +434,22 @@
 
    ui.cancelBtn.onclick = () => {
     sendingCancelled = true;
+
+    // Abort any in-progress FileReader read
+    if (sendFileReader && sendFileReader.readyState === FileReader.LOADING) {
+     sendFileReader.abort();
+    }
+
     socket.emit("send-cancel-transfer", {
      roomId,
      fileName: sendFile.name,
      transferId: currentTransferId
     });
+
     sendFileReader = null;
     sendOffset = sendFile.size;
     sendFilesDisplay.removeChild(ui.card);
+    showToast("Transfer cancelled", "error");
     sendBtn.disabled = false;
    };
 
@@ -362,6 +474,7 @@
     if (sendOffset < sendFile.size) sendChunk();
     else {
      ui.status.textContent = 'Upload complete';
+     showToast("Upload completed", "success");
      ui.status.style.color = '#22c55e';
      sendBtn.disabled = false;
      ui.cancelBtn.remove();
@@ -413,10 +526,11 @@
     ui.progressBar.style.width = `${(receivedSize / metadata.size) * 100}%`;
 
     if (receivedSize >= metadata.size) {
-     ui.status.textContent = 'Download complete';
-     ui.status.style.color = '#22c55e';
+     ui.status.textContent = `${formatBytes(receivedSize)}`;
+     ui.status.style.color = 'black';
      ui.progressBar.parentElement.style.display = 'none';
      ui.cancelBtn.remove();
+     showToast("File received", "success");
      ui.downloadBtn.style.display = 'block';
     }
    });
@@ -433,6 +547,7 @@
 
       if (status) {
        status.textContent = 'Cancelled by sender';
+       showToast("Cancelled by sender", "error");
        status.style.color = '#ef4444';
       }
       if (progressBar) {
@@ -443,5 +558,48 @@
     });
   });
  </script>
+ <script>
+  function showToast(message, type = 'info', options = {}) {
+   const container = document.getElementById('toast-container');
+   const toast = document.createElement('div');
+   toast.className = `toast ${type}`;
+
+   const {
+    duration = 4500, dismissible = false
+   } = options;
+
+   // Build toast content
+   let innerHTML = `<span>${message}</span>`;
+
+   if (dismissible) {
+    innerHTML += `<button class="dismiss-btn" onclick="this.parentElement.remove()">❌</button>`;
+   }
+
+   toast.innerHTML = innerHTML;
+   container.appendChild(toast);
+
+   // Override animation delay dynamically
+   toast.style.animation = `slideIn 0.4s ease forwards, fadeOut 0.2s ease forwards ${duration - 1000}ms`;
+
+   // Auto remove
+   const autoRemove = setTimeout(() => {
+    if (toast.parentElement) toast.remove();
+   },
+    duration);
+
+   // Optional: cancel timeout on manual dismiss
+   if (dismissible) {
+    toast.querySelector('button').addEventListener('click', () => clearTimeout(autoRemove));
+   }
+  }
+ </script>
+
+<!-- <script " to check toast " >
+  document.getElementById("testbtn").addEventListener("click", function () {
+   showToast("toast hyyhuujjhyy 5ghuyhh tfvhyh test", "info", {
+    duration: 99999999, dismissible: true
+   });
+  });
+ </script>-->
 </body>
 </html>
